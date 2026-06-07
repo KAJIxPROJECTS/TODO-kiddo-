@@ -54,6 +54,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentNavIndex = _getNavItemIndex(widget.navigationShell.currentIndex);
 
     return Scaffold(
@@ -64,7 +65,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
             child: widget.navigationShell,
           ),
           
-          // Floating Navigation Bar (White, Rounded, Soft Shadow matching reference)
+          // Floating Navigation Bar (Theme-aware, Rounded, Soft Shadow matching reference)
           Positioned(
             left: 20,
             right: 20,
@@ -76,10 +77,10 @@ class _MainShellScreenState extends State<MainShellScreen> {
                 child: Container(
                   height: 76,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
+                    color: theme.colorScheme.surface.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
                       width: 1.0,
                     ),
                     boxShadow: [
@@ -164,8 +165,10 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = Colors.black; // Reference design uses deep dark/black for selected tab
-    final inactiveColor = Colors.black38;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final activeColor = isDark ? Colors.white : Colors.black;
+    final inactiveColor = isDark ? Colors.white38 : Colors.black38;
 
     return GestureDetector(
       onTap: onTap,
@@ -311,12 +314,14 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(top: 80),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
@@ -348,7 +353,7 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                       width: 48,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -356,12 +361,12 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                   const SizedBox(height: 24),
                   
                   // Header
-                  const Text(
+                  Text(
                     'Create New Task',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      color: Colors.black,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -370,7 +375,10 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                   TextFormField(
                     controller: _titleController,
                     autofocus: true,
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
                         return 'Please enter a task title';
@@ -380,10 +388,14 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                     decoration: InputDecoration(
                       hintText: 'What needs to be done?',
                       hintStyle: TextStyle(
-                        color: Colors.black.withValues(alpha: 0.35),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
                       ),
                       filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.03),
+                      fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.03),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                        borderSide: BorderSide.none,
+                      ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
                   ),
@@ -393,23 +405,30 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                   TextFormField(
                     controller: _descController,
                     maxLines: 3,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.9)),
                     decoration: InputDecoration(
                       hintText: 'Add details or notes...',
                       hintStyle: TextStyle(
-                        color: Colors.black.withValues(alpha: 0.35),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
                       ),
                       filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.03),
+                      fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.03),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                        borderSide: BorderSide.none,
+                      ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
                   ),
                   const SizedBox(height: 20),
 
                   // Category Selection
-                  const Text(
+                  Text(
                     'Category',
-                    style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -434,7 +453,7 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                             selected: isSelected,
                             selectedColor: const Color(0xFFFBBF24),
                             labelStyle: TextStyle(
-                              color: Colors.black87,
+                              color: isSelected ? Colors.black : theme.colorScheme.onSurface,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                             onSelected: (selected) {
@@ -459,9 +478,12 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Due Date',
-                              style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
                             const SizedBox(height: 10),
                             InkWell(
@@ -470,10 +492,10 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.03),
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Colors.black.withValues(alpha: 0.05),
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
                                   ),
                                 ),
                                 child: Row(
@@ -489,7 +511,11 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                                         _selectedDate == null
                                             ? 'Select Date'
                                             : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                                        style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: theme.colorScheme.onSurface,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -507,18 +533,21 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Priority',
-                              style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
                             const SizedBox(height: 10),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.03),
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.black.withValues(alpha: 0.05),
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
                                 ),
                               ),
                               child: Row(
@@ -543,7 +572,9 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                            color: isSelected ? Colors.white : Colors.black87,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : theme.colorScheme.onSurface,
                                           ),
                                         ),
                                       ),
@@ -566,7 +597,7 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.black54,
+                          foregroundColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                         child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
@@ -608,16 +639,19 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                             SnackBar(
                               content: Row(
                                 children: [
-                                  const Icon(Icons.check_circle_rounded, color: Colors.black),
+                                  Icon(Icons.check_circle_rounded, color: isDark ? Colors.white : Colors.black),
                                   const SizedBox(width: 12),
                                   Text(
                                     'Task "${task.title}" created!',
-                                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
                               behavior: SnackBarBehavior.floating,
-                              backgroundColor: const Color(0xFFFBBF24),
+                              backgroundColor: isDark ? Colors.grey[850] : const Color(0xFFFBBF24),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),

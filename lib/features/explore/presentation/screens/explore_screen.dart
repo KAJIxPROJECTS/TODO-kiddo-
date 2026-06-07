@@ -6,8 +6,10 @@ class ExploreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -35,10 +37,10 @@ class ExploreScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 height: 52,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
                   ),
                 ),
                 child: Row(
@@ -53,6 +55,7 @@ class ExploreScreen extends StatelessWidget {
                       style: TextStyle(
                         color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                         fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -64,7 +67,7 @@ class ExploreScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: isDark ? 0.15 : 0.3),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: theme.colorScheme.primary.withValues(alpha: 0.25),
@@ -82,10 +85,10 @@ class ExploreScreen extends StatelessWidget {
                               color: theme.colorScheme.primary,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text(
+                            child: Text(
                               'RECOMMENDED',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: isDark ? Colors.black : Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -103,7 +106,7 @@ class ExploreScreen extends StatelessWidget {
                           Text(
                             'Lock distraction apps and enter a 25-minute Pomodoro focus block.',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.75),
                             ),
                           ),
                         ],
@@ -143,24 +146,25 @@ class ExploreScreen extends StatelessWidget {
                 'Productivity Articles',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 16),
 
               // Article List
-              _ArticleItem(
+              const _ArticleItem(
                 title: 'The Art of Saying No: Decluttering Your Schedule',
                 readTime: '5 min read',
                 category: 'Workplace',
                 gradientColors: [Colors.purple, Colors.pink],
               ),
-              _ArticleItem(
+              const _ArticleItem(
                 title: '10 Easy Ways to Improve Your Sleeping Habit',
                 readTime: '8 min read',
                 category: 'Well-being',
                 gradientColors: [Colors.teal, Colors.green],
               ),
-              _ArticleItem(
+              const _ArticleItem(
                 title: 'Setting Up the Perfect Workspace for Productivity',
                 readTime: '6 min read',
                 category: 'Minimalism',
@@ -198,10 +202,10 @@ class _ArticleItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15),
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.02),
         ),
       ),
       child: Row(
@@ -245,6 +249,7 @@ class _ArticleItem extends StatelessWidget {
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     height: 1.3,
+                    color: theme.colorScheme.onSurface,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

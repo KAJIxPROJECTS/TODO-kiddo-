@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:todo_app/app.dart';
 import 'package:todo_app/data/repositories/hive_task_repository.dart';
+import 'package:todo_app/data/services/notification_service.dart';
 import 'package:todo_app/presentation/providers/task_providers.dart';
 
 void main() async {
@@ -10,10 +11,17 @@ void main() async {
 
   // Initialize Hive
   await Hive.initFlutter();
+  await Hive.openBox('profile_box');
 
   // Initialize Task Repository and register adapters
   final taskRepository = HiveTaskRepository();
   await taskRepository.init();
+
+  // Initialize Local Notifications
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.requestPermissions();
+  await notificationService.scheduleDailyReminder();
 
   runApp(
     ProviderScope(
