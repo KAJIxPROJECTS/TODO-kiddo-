@@ -2,10 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:todo_app/presentation/providers/profile_providers.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
-  void _showEditProfileDialog(BuildContext context, WidgetRef ref, ProfileState profile) {
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _entryController;
+  late Animation<double> _avatarScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _avatarScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+    _entryController.forward();
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    super.dispose();
+  }
+
+  void _showEditProfileDialog(BuildContext context, ProfileState profile) {
     final nameController = TextEditingController(text: profile.name);
     final urlController = TextEditingController(text: profile.imageUrl);
 
@@ -80,7 +110,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final profile = ref.watch(profileProvider);
 
@@ -106,56 +136,59 @@ class ProfileScreen extends ConsumerWidget {
 
               // Avatar with Edit Button & Hero Transition
               GestureDetector(
-                onTap: () => _showEditProfileDialog(context, ref, profile),
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    Hero(
-                      tag: 'user-avatar',
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              theme.colorScheme.primary,
-                              theme.colorScheme.secondary,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
+                onTap: () => _showEditProfileDialog(context, profile),
+                child: ScaleTransition(
+                  scale: _avatarScale,
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Hero(
+                        tag: 'user-avatar',
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.secondary,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                          image: DecorationImage(
-                            image: NetworkImage(profile.imageUrl),
-                            fit: BoxFit.cover,
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                            image: DecorationImage(
+                              image: NetworkImage(profile.imageUrl),
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant,
-                          width: 1.5,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.edit_rounded,
+                          size: 16,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
-                      child: Icon(
-                        Icons.edit_rounded,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -175,7 +208,8 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _ProfileStatTile(
-                      value: '42',
+                      value: 42,
+                      suffix: '',
                       label: 'Completed',
                       color: theme.colorScheme.primary,
                     ),
@@ -183,7 +217,8 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _ProfileStatTile(
-                      value: '85%',
+                      value: 85,
+                      suffix: '%',
                       label: 'Focus Rate',
                       color: Colors.green,
                     ),
@@ -191,7 +226,8 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _ProfileStatTile(
-                      value: '14h',
+                      value: 14,
+                      suffix: 'h',
                       label: 'Focus Time',
                       color: Colors.purple,
                     ),
@@ -211,18 +247,24 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    _SettingsItem(
-                      icon: Icons.notifications_none_rounded,
-                      title: 'Notifications',
-                      subtitle: 'Alerts, task reminders, daily briefing',
-                      onTap: () {},
+                    StaggeredEntrance(
+                      delay: const Duration(milliseconds: 0),
+                      child: _SettingsItem(
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Notifications',
+                        subtitle: 'Alerts, task reminders, daily briefing',
+                        onTap: () {},
+                      ),
                     ),
                     Divider(height: 1, color: theme.colorScheme.onSurface.withValues(alpha: 0.05)),
-                    _SettingsItem(
-                      icon: Icons.help_outline_rounded,
-                      title: 'Help & Support',
-                      subtitle: 'FAQs, contact developer, report bug',
-                      onTap: () {},
+                    StaggeredEntrance(
+                      delay: const Duration(milliseconds: 50),
+                      child: _SettingsItem(
+                        icon: Icons.help_outline_rounded,
+                        title: 'Help & Support',
+                        subtitle: 'FAQs, contact developer, report bug',
+                        onTap: () {},
+                      ),
                     ),
                   ],
                 ),
@@ -238,13 +280,126 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
+class CountingText extends StatefulWidget {
+  final int targetValue;
+  final String suffix;
+  final TextStyle? style;
+
+  const CountingText({
+    super.key,
+    required this.targetValue,
+    this.suffix = '',
+    this.style,
+  });
+
+  @override
+  State<CountingText> createState() => _CountingTextState();
+}
+
+class _CountingTextState extends State<CountingText> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<int> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _animation = IntTween(begin: 0, end: widget.targetValue).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Text(
+          '${_animation.value}${widget.suffix}',
+          style: widget.style,
+        );
+      },
+    );
+  }
+}
+
+class StaggeredEntrance extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+
+  const StaggeredEntrance({
+    super.key,
+    required this.child,
+    required this.delay,
+  });
+
+  @override
+  State<StaggeredEntrance> createState() => _StaggeredEntranceState();
+}
+
+class _StaggeredEntranceState extends State<StaggeredEntrance> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _slide = Tween<Offset>(begin: const Offset(0.0, 0.2), end: Offset.zero).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+
+    Future.delayed(widget.delay, () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 class _ProfileStatTile extends StatelessWidget {
-  final String value;
+  final int value;
+  final String suffix;
   final String label;
   final Color color;
 
   const _ProfileStatTile({
     required this.value,
+    required this.suffix,
     required this.label,
     required this.color,
   });
@@ -264,8 +419,9 @@ class _ProfileStatTile extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            value,
+          CountingText(
+            targetValue: value,
+            suffix: suffix,
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: color,
@@ -284,7 +440,7 @@ class _ProfileStatTile extends StatelessWidget {
   }
 }
 
-class _SettingsItem extends StatelessWidget {
+class _SettingsItem extends StatefulWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -298,40 +454,76 @@ class _SettingsItem extends StatelessWidget {
   });
 
   @override
+  State<_SettingsItem> createState() => _SettingsItemState();
+}
+
+class _SettingsItemState extends State<_SettingsItem> with SingleTickerProviderStateMixin {
+  late AnimationController _pressController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _pressController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Material(
+        color: Colors.transparent,
+        child: GestureDetector(
+          onTapDown: (_) => _pressController.forward(),
+          onTapUp: (_) {
+            _pressController.reverse();
+            widget.onTap();
+          },
+          onTapCancel: () => _pressController.reverse(),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(widget.icon, color: theme.colorScheme.primary, size: 20),
+            ),
+            title: Text(
+              widget.title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            subtitle: Text(
+              widget.subtitle,
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
           ),
-          child: Icon(icon, color: theme.colorScheme.primary, size: 20),
         ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            fontSize: 12,
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-        ),
-        onTap: onTap,
       ),
     );
   }
