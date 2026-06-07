@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/models/task_model.dart';
+import '../providers/task_providers.dart';
 
 class MainShellScreen extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -253,14 +256,15 @@ class _FloatingActionButtonState extends State<_FloatingActionButton> {
   }
 }
 
-class AddTaskBottomSheet extends StatefulWidget {
+class AddTaskBottomSheet extends ConsumerStatefulWidget {
   const AddTaskBottomSheet({super.key});
 
   @override
-  State<AddTaskBottomSheet> createState() => _AddTaskBottomSheetState();
+  ConsumerState<AddTaskBottomSheet> createState() => _AddTaskBottomSheetState();
 }
 
-class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
+class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   String _selectedPriority = 'Medium';
@@ -332,131 +336,184 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             bottom: mediaQuery.viewInsets.bottom + 24,
           ),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Pull handle
-                Center(
-                  child: Container(
-                    width: 48,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Pull handle
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                
-                // Header
-                const Text(
-                  'Create New Task',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Task Title Input
-                TextField(
-                  controller: _titleController,
-                  autofocus: true,
-                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-                  decoration: InputDecoration(
-                    hintText: 'What needs to be done?',
-                    hintStyle: TextStyle(
-                      color: Colors.black.withValues(alpha: 0.35),
+                  const SizedBox(height: 24),
+                  
+                  // Header
+                  const Text(
+                    'Create New Task',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
                     ),
-                    filled: true,
-                    fillColor: Colors.black.withValues(alpha: 0.03),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                // Task Description Input
-                TextField(
-                  controller: _descController,
-                  maxLines: 3,
-                  style: const TextStyle(color: Colors.black87),
-                  decoration: InputDecoration(
-                    hintText: 'Add details or notes...',
-                    hintStyle: TextStyle(
-                      color: Colors.black.withValues(alpha: 0.35),
-                    ),
-                    filled: true,
-                    fillColor: Colors.black.withValues(alpha: 0.03),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Category Selection
-                const Text(
-                  'Category',
-                  style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 42,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    itemBuilder: (context, index) {
-                      final cat = _categories[index];
-                      final isSelected = _selectedCategory == cat['name'];
-                      final color = cat['color'] as Color;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: ChoiceChip(
-                          avatar: Icon(
-                            cat['icon'],
-                            size: 16,
-                            color: isSelected ? Colors.black : color,
-                          ),
-                          label: Text(cat['name']),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFFFBBF24),
-                          labelStyle: TextStyle(
-                            color: Colors.black87,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          ),
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() => _selectedCategory = cat['name']);
-                            }
-                          },
-                        ),
-                      );
+                  // Task Title Input
+                  TextFormField(
+                    controller: _titleController,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Please enter a task title';
+                      }
+                      return null;
                     },
+                    decoration: InputDecoration(
+                      hintText: 'What needs to be done?',
+                      hintStyle: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.35),
+                      ),
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.03),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                // Row for Date Picker & Priority
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date Picker
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Due Date',
-                            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                  // Task Description Input
+                  TextFormField(
+                    controller: _descController,
+                    maxLines: 3,
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'Add details or notes...',
+                      hintStyle: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.35),
+                      ),
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.03),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Category Selection
+                  const Text(
+                    'Category',
+                    style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 42,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _categories.length,
+                      itemBuilder: (context, index) {
+                        final cat = _categories[index];
+                        final isSelected = _selectedCategory == cat['name'];
+                        final color = cat['color'] as Color;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: ChoiceChip(
+                            avatar: Icon(
+                              cat['icon'],
+                              size: 16,
+                              color: isSelected ? Colors.black : color,
+                            ),
+                            label: Text(cat['name']),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFFFBBF24),
+                            labelStyle: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() => _selectedCategory = cat['name']);
+                              }
+                            },
                           ),
-                          const SizedBox(height: 10),
-                          InkWell(
-                            onTap: _selectDate,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Row for Date Picker & Priority
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date Picker
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Due Date',
+                              style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                            ),
+                            const SizedBox(height: 10),
+                            InkWell(
+                              onTap: _selectDate,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 16,
+                                      color: Color(0xFFFBBF24),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedDate == null
+                                            ? 'Select Date'
+                                            : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                                        style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Priority
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Priority',
+                              style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.03),
                                 borderRadius: BorderRadius.circular(12),
@@ -465,146 +522,127 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                                 ),
                               ),
                               child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 16,
-                                    color: Color(0xFFFBBF24),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _selectedDate == null
-                                          ? 'Select Date'
-                                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                                      style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Priority
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Priority',
-                            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.black.withValues(alpha: 0.05),
-                              ),
-                            ),
-                            child: Row(
-                              children: ['Low', 'Medium', 'High'].map((prio) {
-                                final isSelected = _selectedPriority == prio;
-                                Color prioColor = Colors.green;
-                                if (prio == 'Medium') prioColor = Colors.orange;
-                                if (prio == 'High') prioColor = Colors.red;
+                                children: ['Low', 'Medium', 'High'].map((prio) {
+                                  final isSelected = _selectedPriority == prio;
+                                  Color prioColor = Colors.green;
+                                  if (prio == 'Medium') prioColor = Colors.orange;
+                                  if (prio == 'High') prioColor = Colors.red;
 
-                                return Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _selectedPriority = prio),
-                                    child: Container(
-                                      alignment: Alignment.center,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? prioColor : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        prio,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                          color: isSelected ? Colors.white : Colors.black87,
+                                  return Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _selectedPriority = prio),
+                                      child: Container(
+                                        alignment: Alignment.center,
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? prioColor : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          prio,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                            color: isSelected ? Colors.white : Colors.black87,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
+                                  );
+                                }).toList(),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-
-                // Action Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                      ),
-                      child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_titleController.text.trim().isEmpty) return;
-                        
-                        // Handle task creation
-                        Navigator.pop(context);
-                        
-                        // Show success animation or toast
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle_rounded, color: Colors.black),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Task "${_titleController.text}" created!',
-                                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: const Color(0xFFFBBF24),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            margin: const EdgeInsets.only(bottom: 110, left: 16, right: 16),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFBBF24),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          ],
                         ),
-                        elevation: 0,
                       ),
-                      child: const Text(
-                        'Create Task',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Action Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black54,
+                        ),
+                        child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+                            return;
+                          }
+                          
+                          // Convert Priority string to Enum
+                          TaskPriority prio = TaskPriority.medium;
+                          if (_selectedPriority == 'Low') prio = TaskPriority.low;
+                          if (_selectedPriority == 'High') prio = TaskPriority.high;
+
+                          // Create task object
+                          final task = Task(
+                            id: DateTime.now().millisecondsSinceEpoch.toString(),
+                            title: _titleController.text.trim(),
+                            description: _descController.text.trim(),
+                            priority: prio,
+                            category: _selectedCategory,
+                            dueDate: _selectedDate,
+                            completed: false,
+                            createdAt: DateTime.now(),
+                          );
+
+                          final navigator = Navigator.of(context);
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                          // Save to Hive storage via Riverpod
+                          await ref.read(tasksProvider.notifier).addTask(task);
+
+                          // Close Bottom Sheet
+                          navigator.pop();
+                          
+                          // Show success SnackBar
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Colors.black),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Task "${task.title}" created!',
+                                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: const Color(0xFFFBBF24),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              margin: const EdgeInsets.only(bottom: 110, left: 16, right: 16),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFBBF24),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Create Task',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
