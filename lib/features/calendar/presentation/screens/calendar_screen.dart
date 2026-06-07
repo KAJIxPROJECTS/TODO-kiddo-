@@ -251,119 +251,382 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       ),
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(left: 24, right: 24, bottom: 90),
-                    itemCount: selectedDayTasks.length,
-                    itemBuilder: (context, index) {
-                      final task = selectedDayTasks[index];
-                      final isCompleted = task.completed;
-                      final categoryColor = _getCategoryColor(task.category);
-                      final prioColor = _getPriorityColor(task.priority);
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.01),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: Colors.black.withValues(alpha: 0.02),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isCompleted ? const Color(0xFFFBBF24) : Colors.transparent,
-                                  border: Border.all(
-                                    color: isCompleted ? const Color(0xFFFBBF24) : Colors.black26,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: isCompleted
-                                    ? const Icon(
-                                        Icons.check_rounded,
-                                        color: Colors.black,
-                                        size: 16,
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    task.title,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: isCompleted ? Colors.black45 : Colors.black87,
-                                      decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: categoryColor.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          task.category,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: categoryColor,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: prioColor.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          task.priority.name.toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: prioColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                : AnimatedCalendarTaskList(
+                    tasks: selectedDayTasks,
+                    onToggle: (id) {
+                      ref.read(tasksProvider.notifier).toggleTaskCompletion(id);
                     },
+                    onDelete: (id) {
+                      ref.read(tasksProvider.notifier).deleteTask(id);
+                    },
+                    getPriorityColor: _getPriorityColor,
+                    getCategoryColor: _getCategoryColor,
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class AnimatedCalendarTaskList extends StatefulWidget {
+  final List<Task> tasks;
+  final void Function(String id) onToggle;
+  final void Function(String id) onDelete;
+  final Color Function(TaskPriority priority) getPriorityColor;
+  final Color Function(String category) getCategoryColor;
+
+  const AnimatedCalendarTaskList({
+    super.key,
+    required this.tasks,
+    required this.onToggle,
+    required this.onDelete,
+    required this.getPriorityColor,
+    required this.getCategoryColor,
+  });
+
+  @override
+  State<AnimatedCalendarTaskList> createState() => _AnimatedCalendarTaskListState();
+}
+
+class _AnimatedCalendarTaskListState extends State<AnimatedCalendarTaskList> {
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  final List<Task> _displayedTasks = [];
+  final Set<String> _swipedTaskIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedTasks.addAll(widget.tasks);
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedCalendarTaskList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    final oldTasks = List<Task>.from(_displayedTasks);
+    final newTasks = widget.tasks;
+
+    for (int i = oldTasks.length - 1; i >= 0; i--) {
+      final task = oldTasks[i];
+      final newIndex = newTasks.indexWhere((t) => t.id == task.id);
+      if (newIndex == -1) {
+        _displayedTasks.removeAt(i);
+        if (_swipedTaskIds.contains(task.id)) {
+          _swipedTaskIds.remove(task.id);
+          _listKey.currentState?.removeItem(
+            i,
+            (context, animation) => const SizedBox.shrink(),
+            duration: Duration.zero,
+          );
+        } else {
+          _listKey.currentState?.removeItem(
+            i,
+            (context, animation) => SizeTransition(
+              sizeFactor: animation,
+              alignment: Alignment.center,
+              child: FadeTransition(
+                opacity: animation,
+                child: _buildItem(task),
+              ),
+            ),
+            duration: const Duration(milliseconds: 250),
+          );
+        }
+      }
+    }
+
+    for (int i = 0; i < newTasks.length; i++) {
+      final task = newTasks[i];
+      final oldIndex = _displayedTasks.indexWhere((t) => t.id == task.id);
+      if (oldIndex == -1) {
+        _displayedTasks.insert(i, task);
+        _listKey.currentState?.insertItem(
+          i,
+          duration: const Duration(milliseconds: 300),
+        );
+      } else if (oldIndex != i) {
+        _displayedTasks.removeAt(oldIndex);
+        _listKey.currentState?.removeItem(
+          oldIndex,
+          (context, animation) => const SizedBox.shrink(),
+          duration: Duration.zero,
+        );
+        _displayedTasks.insert(i, task);
+        _listKey.currentState?.insertItem(
+          i,
+          duration: Duration.zero,
+        );
+      } else {
+        _displayedTasks[i] = task;
+      }
+    }
+  }
+
+  Widget _buildItem(Task task) {
+    final categoryColor = widget.getCategoryColor(task.category);
+    final prioColor = widget.getPriorityColor(task.priority);
+
+    return CalendarTaskCardItem(
+      key: ValueKey(task.id),
+      task: task,
+      onToggle: () => widget.onToggle(task.id),
+      onDelete: () => widget.onDelete(task.id),
+      categoryColor: categoryColor,
+      prioColor: prioColor,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedList(
+      key: _listKey,
+      initialItemCount: _displayedTasks.length,
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 90),
+      itemBuilder: (context, index, animation) {
+        if (index >= _displayedTasks.length) return const SizedBox.shrink();
+        final task = _displayedTasks[index];
+
+        final fadeTransition = FadeTransition(
+          opacity: animation,
+          child: _buildItem(task),
+        );
+
+        final slideTransition = SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.0, 0.25),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: fadeTransition,
+        );
+
+        final scaleTransition = ScaleTransition(
+          scale: Tween<double>(
+            begin: 0.95,
+            end: 1.0,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: slideTransition,
+        );
+
+        return Dismissible(
+          key: ValueKey(task.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(right: 24),
+            alignment: Alignment.centerRight,
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.red,
+            ),
+          ),
+          onDismissed: (direction) {
+            _swipedTaskIds.add(task.id);
+            widget.onDelete(task.id);
+          },
+          child: scaleTransition,
+        );
+      },
+    );
+  }
+}
+
+class CalendarTaskCardItem extends StatefulWidget {
+  final Task task;
+  final VoidCallback onToggle;
+  final VoidCallback onDelete;
+  final Color categoryColor;
+  final Color prioColor;
+
+  const CalendarTaskCardItem({
+    super.key,
+    required this.task,
+    required this.onToggle,
+    required this.onDelete,
+    required this.categoryColor,
+    required this.prioColor,
+  });
+
+  @override
+  State<CalendarTaskCardItem> createState() => _CalendarTaskCardItemState();
+}
+
+class _CalendarTaskCardItemState extends State<CalendarTaskCardItem> with SingleTickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant CalendarTaskCardItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.task.completed != oldWidget.task.completed) {
+      _scaleController.forward().then((_) => _scaleController.reverse());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = widget.task.completed;
+
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.01),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.black.withValues(alpha: 0.02),
+          ),
+        ),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: widget.onToggle,
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isCompleted ? const Color(0xFFFBBF24) : Colors.transparent,
+                  border: Border.all(
+                    color: isCompleted ? const Color(0xFFFBBF24) : Colors.black26,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: isCompleted
+                        ? const Icon(
+                            Icons.check_rounded,
+                            key: ValueKey('check'),
+                            color: Colors.black,
+                            size: 16,
+                          )
+                        : const SizedBox(key: ValueKey('empty')),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Text(
+                        widget.task.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isCompleted ? Colors.black45 : Colors.black87,
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: isCompleted ? 1.0 : 0.0),
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            builder: (context, value, child) {
+                              return FractionallySizedBox(
+                                widthFactor: value,
+                                child: Container(
+                                  height: 1.5,
+                                  color: Colors.black45,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: widget.categoryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.task.category,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: widget.categoryColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: widget.prioColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.task.priority.name.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: widget.prioColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

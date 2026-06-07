@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:todo_app/presentation/providers/task_providers.dart';
 import 'package:todo_app/presentation/providers/profile_providers.dart';
+import 'package:todo_app/data/models/task_model.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -326,18 +327,15 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   )
                 else
-                  Column(
-                    children: todayTasks.map((task) {
-                      return _TaskRowItem(
-                        title: task.title,
-                        category: task.category,
-                        categoryColor: _getCategoryColor(task.category),
-                        isCompleted: task.completed,
-                        onToggle: () {
-                          ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
-                        },
-                      );
-                    }).toList(),
+                  AnimatedTodayTaskList(
+                    tasks: todayTasks,
+                    onToggle: (id) {
+                      ref.read(tasksProvider.notifier).toggleTaskCompletion(id);
+                    },
+                    onDelete: (id) {
+                      ref.read(tasksProvider.notifier).deleteTask(id);
+                    },
+                    getCategoryColor: _getCategoryColor,
                   ),
                 const SizedBox(height: 32),
 
@@ -639,101 +637,339 @@ class _SunPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _TaskRowItem extends StatelessWidget {
-  final String title;
-  final String category;
+class AnimatedTodayTaskList extends StatefulWidget {
+  final List<Task> tasks;
+  final void Function(String id) onToggle;
+  final void Function(String id) onDelete;
+  final Color Function(String category) getCategoryColor;
+
+  const AnimatedTodayTaskList({
+    super.key,
+    required this.tasks,
+    required this.onToggle,
+    required this.onDelete,
+    required this.getCategoryColor,
+  });
+
+  @override
+  State<AnimatedTodayTaskList> createState() => _AnimatedTodayTaskListState();
+}
+
+class _AnimatedTodayTaskListState extends State<AnimatedTodayTaskList> {
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  final List<Task> _displayedTasks = [];
+  final Set<String> _swipedTaskIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedTasks.addAll(widget.tasks);
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedTodayTaskList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    final oldTasks = List<Task>.from(_displayedTasks);
+    final newTasks = widget.tasks;
+
+    for (int i = oldTasks.length - 1; i >= 0; i--) {
+      final task = oldTasks[i];
+      final newIndex = newTasks.indexWhere((t) => t.id == task.id);
+      if (newIndex == -1) {
+        _displayedTasks.removeAt(i);
+        if (_swipedTaskIds.contains(task.id)) {
+          _swipedTaskIds.remove(task.id);
+          _listKey.currentState?.removeItem(
+            i,
+            (context, animation) => const SizedBox.shrink(),
+            duration: Duration.zero,
+          );
+        } else {
+          _listKey.currentState?.removeItem(
+            i,
+            (context, animation) => SizeTransition(
+              sizeFactor: animation,
+              alignment: Alignment.center,
+              child: FadeTransition(
+                opacity: animation,
+                child: _buildItem(task),
+              ),
+            ),
+            duration: const Duration(milliseconds: 250),
+          );
+        }
+      }
+    }
+
+    for (int i = 0; i < newTasks.length; i++) {
+      final task = newTasks[i];
+      final oldIndex = _displayedTasks.indexWhere((t) => t.id == task.id);
+      if (oldIndex == -1) {
+        _displayedTasks.insert(i, task);
+        _listKey.currentState?.insertItem(
+          i,
+          duration: const Duration(milliseconds: 300),
+        );
+      } else if (oldIndex != i) {
+        _displayedTasks.removeAt(oldIndex);
+        _listKey.currentState?.removeItem(
+          oldIndex,
+          (context, animation) => const SizedBox.shrink(),
+          duration: Duration.zero,
+        );
+        _displayedTasks.insert(i, task);
+        _listKey.currentState?.insertItem(
+          i,
+          duration: Duration.zero,
+        );
+      } else {
+        _displayedTasks[i] = task;
+      }
+    }
+  }
+
+  Widget _buildItem(Task task) {
+    return _TaskRowItem(
+      key: ValueKey(task.id),
+      task: task,
+      categoryColor: widget.getCategoryColor(task.category),
+      onToggle: () => widget.onToggle(task.id),
+      onDelete: () => widget.onDelete(task.id),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedList(
+      key: _listKey,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      initialItemCount: _displayedTasks.length,
+      padding: EdgeInsets.zero,
+      itemBuilder: (context, index, animation) {
+        if (index >= _displayedTasks.length) return const SizedBox.shrink();
+        final task = _displayedTasks[index];
+
+        final fadeTransition = FadeTransition(
+          opacity: animation,
+          child: _buildItem(task),
+        );
+
+        final slideTransition = SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.0, 0.25),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: fadeTransition,
+        );
+
+        final scaleTransition = ScaleTransition(
+          scale: Tween<double>(
+            begin: 0.95,
+            end: 1.0,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: slideTransition,
+        );
+
+        return Dismissible(
+          key: ValueKey(task.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(right: 24),
+            alignment: Alignment.centerRight,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          onDismissed: (direction) {
+            _swipedTaskIds.add(task.id);
+            widget.onDelete(task.id);
+          },
+          child: scaleTransition,
+        );
+      },
+    );
+  }
+}
+
+class _TaskRowItem extends StatefulWidget {
+  final Task task;
   final Color categoryColor;
-  final bool isCompleted;
   final VoidCallback onToggle;
+  final VoidCallback onDelete;
 
   const _TaskRowItem({
-    required this.title,
-    required this.category,
+    super.key,
+    required this.task,
     required this.categoryColor,
-    required this.isCompleted,
     required this.onToggle,
+    required this.onDelete,
   });
+
+  @override
+  State<_TaskRowItem> createState() => _TaskRowItemState();
+}
+
+class _TaskRowItemState extends State<_TaskRowItem> with SingleTickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TaskRowItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.task.completed != oldWidget.task.completed) {
+      _scaleController.forward().then((_) => _scaleController.reverse());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isCompleted = widget.task.completed;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Checkbox circle
-          GestureDetector(
-            onTap: onToggle,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isCompleted ? const Color(0xFFFBBF24) : Colors.transparent,
-                border: Border.all(
-                  color: isCompleted ? const Color(0xFFFBBF24) : theme.colorScheme.outline.withValues(alpha: 0.5),
-                  width: 2,
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Checkbox circle
+            GestureDetector(
+              onTap: widget.onToggle,
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isCompleted ? const Color(0xFFFBBF24) : Colors.transparent,
+                  border: Border.all(
+                    color: isCompleted ? const Color(0xFFFBBF24) : theme.colorScheme.outline.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: isCompleted
+                        ? const Icon(
+                            Icons.check_rounded,
+                            key: ValueKey('check'),
+                            color: Colors.black,
+                            size: 16,
+                          )
+                        : const SizedBox(key: ValueKey('empty')),
+                  ),
                 ),
               ),
-              child: isCompleted
-                  ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.black,
-                      size: 16,
-                    )
-                  : null,
             ),
-          ),
-          const SizedBox(width: 16),
+            const SizedBox(width: 16),
 
-          // Title & Category
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isCompleted ? theme.colorScheme.onSurface.withValues(alpha: 0.45) : theme.colorScheme.onSurface,
-                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+            // Title & Category
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Text(
+                        widget.task.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isCompleted ? theme.colorScheme.onSurface.withValues(alpha: 0.45) : theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: isCompleted ? 1.0 : 0.0),
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            builder: (context, value, child) {
+                              return FractionallySizedBox(
+                                widthFactor: value,
+                                child: Container(
+                                  height: 1.5,
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: categoryColor,
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: widget.categoryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.task.category,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: widget.categoryColor,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
