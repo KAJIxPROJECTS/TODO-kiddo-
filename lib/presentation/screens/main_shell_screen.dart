@@ -17,7 +17,33 @@ class MainShellScreen extends StatefulWidget {
   State<MainShellScreen> createState() => _MainShellScreenState();
 }
 
-class _MainShellScreenState extends State<MainShellScreen> {
+class _MainShellScreenState extends State<MainShellScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _tabTransitionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabTransitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _tabTransitionController.forward(from: 0.0);
+  }
+
+  @override
+  void didUpdateWidget(MainShellScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.navigationShell.currentIndex != oldWidget.navigationShell.currentIndex) {
+      _tabTransitionController.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabTransitionController.dispose();
+    super.dispose();
+  }
+
   int _getNavItemIndex(int branchIndex) {
     if (branchIndex < 2) return branchIndex;
     return branchIndex + 1; // Skip index 2 (center FAB)
@@ -37,19 +63,26 @@ class _MainShellScreenState extends State<MainShellScreen> {
     }
   }
 
+  bool _isModalOpen = false;
+
   void _showAddTaskBottomSheet() {
+    setState(() => _isModalOpen = true);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionAnimationController: AnimationController(
-        vsync: Navigator.of(context),
-        duration: const Duration(milliseconds: 350),
+        vsync: this,
+        duration: const Duration(milliseconds: 250),
         reverseDuration: const Duration(milliseconds: 250),
       ),
       builder: (context) => const AddTaskBottomSheet(),
-    );
+    ).then((_) {
+      if (mounted) {
+        setState(() => _isModalOpen = false);
+      }
+    });
   }
 
   @override
@@ -62,7 +95,21 @@ class _MainShellScreenState extends State<MainShellScreen> {
         children: [
           // Screen content - extends under the transparent bottom bar
           Positioned.fill(
-            child: widget.navigationShell,
+            child: FadeTransition(
+              opacity: _tabTransitionController,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.015),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _tabTransitionController,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                child: widget.navigationShell,
+              ),
+            ),
           ),
           
           // Floating Navigation Bar (Theme-aware, Rounded, Soft Shadow matching reference)
@@ -138,6 +185,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
             bottom: 44, // Floating exactly in the middle of the navbar
             child: Center(
               child: _FloatingActionButton(
+                isModalOpen: _isModalOpen,
                 onTap: _showAddTaskBottomSheet,
               ),
             ),
@@ -173,39 +221,49 @@ class _NavBarItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
         height: 76,
         width: 60,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0, end: isActive ? 1 : 0),
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          builder: (context, val, child) {
-            final scale = 1.0 + (val * 0.1); // Subtle icon scale up when active
-
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Transform.scale(
-                  scale: scale,
-                  child: Icon(
-                    isActive ? activeIcon : icon,
-                    color: Color.lerp(inactiveColor, activeColor, val),
-                    size: 24,
-                  ),
+        decoration: const BoxDecoration(
+          color: Colors.transparent,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: isActive ? 1.15 : 1.0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                child: Icon(
+                  isActive ? activeIcon : icon,
+                  key: ValueKey<bool>(isActive),
+                  color: isActive ? activeColor : inactiveColor,
+                  size: 24,
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: isActive ? FontWeight.w900 : FontWeight.bold,
-                    color: Color.lerp(inactiveColor, activeColor, val),
-                  ),
-                ),
-              ],
-            );
-          },
+              ),
+            ),
+            const SizedBox(height: 5),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w900 : FontWeight.bold,
+                color: isActive ? activeColor : inactiveColor,
+              ),
+              child: Text(label),
+            ),
+          ],
         ),
       ),
     );
@@ -213,9 +271,13 @@ class _NavBarItem extends StatelessWidget {
 }
 
 class _FloatingActionButton extends StatefulWidget {
+  final bool isModalOpen;
   final VoidCallback onTap;
 
-  const _FloatingActionButton({required this.onTap});
+  const _FloatingActionButton({
+    required this.isModalOpen,
+    required this.onTap,
+  });
 
   @override
   State<_FloatingActionButton> createState() => _FloatingActionButtonState();
@@ -230,28 +292,45 @@ class _FloatingActionButtonState extends State<_FloatingActionButton> {
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _isPressed ? 0.9 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
+        scale: _isPressed ? 1.08 : 1.0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
           width: 54,
           height: 54,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFFBBF24), // Reference design yellow accent FAB
+            color: const Color(0xFFFBBF24),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFBBF24).withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: const Color(0xFFFBBF24).withValues(alpha: _isPressed ? 0.45 : 0.35),
+                blurRadius: _isPressed ? 18 : 12,
+                offset: Offset(0, _isPressed ? 6 : 4),
               ),
             ],
           ),
-          child: const Icon(
-            Icons.add_rounded,
-            color: Colors.black,
-            size: 28,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap,
+              customBorder: const CircleBorder(),
+              splashColor: Colors.black12,
+              child: Center(
+                child: AnimatedRotation(
+                  turns: widget.isModalOpen ? 0.125 : 0.0,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  child: const Icon(
+                    Icons.add_rounded,
+                    color: Colors.black,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -266,13 +345,14 @@ class AddTaskBottomSheet extends ConsumerStatefulWidget {
   ConsumerState<AddTaskBottomSheet> createState() => _AddTaskBottomSheetState();
 }
 
-class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
+class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   String _selectedPriority = 'Medium';
   String _selectedCategory = 'Work';
   DateTime? _selectedDate;
+  late AnimationController _staggerController;
 
   final List<Map<String, dynamic>> _categories = [
     {'name': 'Work', 'icon': Icons.work_outline_rounded, 'color': Colors.blue},
@@ -283,7 +363,18 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _staggerController.forward();
+  }
+
+  @override
   void dispose() {
+    _staggerController.dispose();
     _titleController.dispose();
     _descController.dispose();
     super.dispose();
@@ -310,6 +401,34 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
+  }
+
+  Widget _buildAnimatedItem({required int index, required Widget child}) {
+    final start = index * 50 / 450.0;
+    final end = (index * 50 + 200) / 450.0;
+
+    final animation = CurvedAnimation(
+      parent: _staggerController,
+      curve: Interval(
+        start.clamp(0.0, 1.0),
+        end.clamp(0.0, 1.0),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: animation.value,
+          child: Transform.translate(
+            offset: Offset(0.0, (1.0 - animation.value) * 15.0),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 
   @override
@@ -372,98 +491,112 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                   const SizedBox(height: 20),
 
                   // Task Title Input
-                  TextFormField(
-                    controller: _titleController,
-                    autofocus: true,
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Please enter a task title';
-                      }
-                      return null;
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'What needs to be done?',
-                      hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  _buildAnimatedItem(
+                    index: 0,
+                    child: TextFormField(
+                      controller: _titleController,
+                      autofocus: true,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
                       ),
-                      filled: true,
-                      fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.03),
-                      border: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(16)),
-                        borderSide: BorderSide.none,
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter a task title';
+                        }
+                        return null;
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'What needs to be done?',
+                        hintStyle: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.03),
+                        border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // Task Description Input
-                  TextFormField(
-                    controller: _descController,
-                    maxLines: 3,
-                    style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.9)),
-                    decoration: InputDecoration(
-                      hintText: 'Add details or notes...',
-                      hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  _buildAnimatedItem(
+                    index: 1,
+                    child: TextFormField(
+                      controller: _descController,
+                      maxLines: 3,
+                      style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.9)),
+                      decoration: InputDecoration(
+                        hintText: 'Add details or notes...',
+                        hintStyle: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.03),
+                        border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
-                      filled: true,
-                      fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.03),
-                      border: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(16)),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
                   ),
                   const SizedBox(height: 20),
 
                   // Category Selection
-                  Text(
-                    'Category',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 42,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _categories.length,
-                      itemBuilder: (context, index) {
-                        final cat = _categories[index];
-                        final isSelected = _selectedCategory == cat['name'];
-                        final color = cat['color'] as Color;
+                  _buildAnimatedItem(
+                    index: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Category',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 42,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _categories.length,
+                            itemBuilder: (context, index) {
+                              final cat = _categories[index];
+                              final isSelected = _selectedCategory == cat['name'];
+                              final color = cat['color'] as Color;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: ChoiceChip(
-                            avatar: Icon(
-                              cat['icon'],
-                              size: 16,
-                              color: isSelected ? Colors.black : color,
-                            ),
-                            label: Text(cat['name']),
-                            selected: isSelected,
-                            selectedColor: const Color(0xFFFBBF24),
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.black : theme.colorScheme.onSurface,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() => _selectedCategory = cat['name']);
-                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: ChoiceChip(
+                                  avatar: Icon(
+                                    cat['icon'],
+                                    size: 16,
+                                    color: isSelected ? Colors.black : color,
+                                  ),
+                                  label: Text(cat['name']),
+                                  selected: isSelected,
+                                  selectedColor: const Color(0xFFFBBF24),
+                                  labelStyle: TextStyle(
+                                    color: isSelected ? Colors.black : theme.colorScheme.onSurface,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setState(() => _selectedCategory = cat['name']);
+                                    }
+                                  },
+                                ),
+                              );
                             },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -475,22 +608,79 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                       // Date Picker
                       Expanded(
                         flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Due Date',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: theme.colorScheme.onSurface,
+                        child: _buildAnimatedItem(
+                          index: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Due Date',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: theme.colorScheme.onSurface,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            InkWell(
-                              onTap: _selectDate,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              const SizedBox(height: 10),
+                              InkWell(
+                                onTap: _selectDate,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.calendar_today_rounded,
+                                        size: 16,
+                                        color: Color(0xFFFBBF24),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _selectedDate == null
+                                              ? 'Select Date'
+                                              : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                                          style: TextStyle(
+                                            color: theme.colorScheme.onSurface,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Priority
+                      Expanded(
+                        flex: 1,
+                        child: _buildAnimatedItem(
+                          index: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Priority',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
                                   borderRadius: BorderRadius.circular(12),
@@ -499,91 +689,40 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                                   ),
                                 ),
                                 child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_today_rounded,
-                                      size: 16,
-                                      color: Color(0xFFFBBF24),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _selectedDate == null
-                                            ? 'Select Date'
-                                            : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                                        style: TextStyle(
-                                          color: theme.colorScheme.onSurface,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Priority
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Priority',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-                                ),
-                              ),
-                              child: Row(
-                                children: ['Low', 'Medium', 'High'].map((prio) {
-                                  final isSelected = _selectedPriority == prio;
-                                  Color prioColor = Colors.green;
-                                  if (prio == 'Medium') prioColor = Colors.orange;
-                                  if (prio == 'High') prioColor = Colors.red;
+                                  children: ['Low', 'Medium', 'High'].map((prio) {
+                                    final isSelected = _selectedPriority == prio;
+                                    Color prioColor = Colors.green;
+                                    if (prio == 'Medium') prioColor = Colors.orange;
+                                    if (prio == 'High') prioColor = Colors.red;
 
-                                  return Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => setState(() => _selectedPriority = prio),
-                                      child: Container(
-                                        alignment: Alignment.center,
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? prioColor : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          prio,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                            color: isSelected
-                                                ? Colors.white
-                                                : theme.colorScheme.onSurface,
+                                    return Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _selectedPriority = prio),
+                                        child: Container(
+                                          alignment: Alignment.center,
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? prioColor : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            prio,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : theme.colorScheme.onSurface,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                }).toList(),
+                                    );
+                                  }).toList(),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -591,89 +730,92 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                   const SizedBox(height: 28),
 
                   // Action Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                        ),
-                        child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
-                            return;
-                          }
-                          
-                          // Convert Priority string to Enum
-                          TaskPriority prio = TaskPriority.medium;
-                          if (_selectedPriority == 'Low') prio = TaskPriority.low;
-                          if (_selectedPriority == 'High') prio = TaskPriority.high;
-
-                          // Create task object
-                          final task = Task(
-                            id: DateTime.now().millisecondsSinceEpoch.toString(),
-                            title: _titleController.text.trim(),
-                            description: _descController.text.trim(),
-                            priority: prio,
-                            category: _selectedCategory,
-                            dueDate: _selectedDate,
-                            completed: false,
-                            createdAt: DateTime.now(),
-                          );
-
-                          final navigator = Navigator.of(context);
-                          final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-                          // Save to Hive storage via Riverpod
-                          await ref.read(tasksProvider.notifier).addTask(task);
-
-                          // Close Bottom Sheet
-                          navigator.pop();
-                          
-                          // Show success SnackBar
-                          scaffoldMessenger.showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  Icon(Icons.check_circle_rounded, color: isDark ? Colors.white : Colors.black),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Task "${task.title}" created!',
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: isDark ? Colors.grey[850] : const Color(0xFFFBBF24),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              margin: const EdgeInsets.only(bottom: 110, left: 16, right: 16),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFBBF24),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                  _buildAnimatedItem(
+                    index: 5,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
-                          elevation: 0,
+                          child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
-                        child: const Text(
-                          'Create Task',
-                          style: TextStyle(fontWeight: FontWeight.w900),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+                              return;
+                            }
+                            
+                            // Convert Priority string to Enum
+                            TaskPriority prio = TaskPriority.medium;
+                            if (_selectedPriority == 'Low') prio = TaskPriority.low;
+                            if (_selectedPriority == 'High') prio = TaskPriority.high;
+
+                            // Create task object
+                            final task = Task(
+                              id: DateTime.now().millisecondsSinceEpoch.toString(),
+                              title: _titleController.text.trim(),
+                              description: _descController.text.trim(),
+                              priority: prio,
+                              category: _selectedCategory,
+                              dueDate: _selectedDate,
+                              completed: false,
+                              createdAt: DateTime.now(),
+                            );
+
+                            final navigator = Navigator.of(context);
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                            // Save to Hive storage via Riverpod
+                            await ref.read(tasksProvider.notifier).addTask(task);
+
+                            // Close Bottom Sheet
+                            navigator.pop();
+                            
+                            // Show success SnackBar
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(Icons.check_circle_rounded, color: isDark ? Colors.white : Colors.black),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Task "${task.title}" created!',
+                                      style: TextStyle(
+                                        color: isDark ? Colors.white : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: isDark ? Colors.grey[850] : const Color(0xFFFBBF24),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                margin: const EdgeInsets.only(bottom: 110, left: 16, right: 16),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFBBF24),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Create Task',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

@@ -6,6 +6,7 @@ import '../../features/tasks/presentation/screens/tasks_screen.dart';
 import '../../features/explore/presentation/screens/explore_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../presentation/screens/main_shell_screen.dart';
+import 'app_page_route.dart';
 
 part 'app_routes.dart';
 
@@ -31,15 +32,9 @@ class AppRouter {
               GoRoute(
                 path: AppRoutes.home,
                 name: 'home',
-                pageBuilder: (context, state) => CustomTransitionPage(
+                pageBuilder: (context, state) => AppPageRoute(
                   key: state.pageKey,
                   child: const HomeScreen(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
             ],
@@ -49,15 +44,9 @@ class AppRouter {
               GoRoute(
                 path: AppRoutes.explore,
                 name: 'explore',
-                pageBuilder: (context, state) => CustomTransitionPage(
+                pageBuilder: (context, state) => AppPageRoute(
                   key: state.pageKey,
                   child: const ExploreScreen(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
             ],
@@ -67,15 +56,9 @@ class AppRouter {
               GoRoute(
                 path: AppRoutes.tasks,
                 name: 'tasks',
-                pageBuilder: (context, state) => CustomTransitionPage(
+                pageBuilder: (context, state) => AppPageRoute(
                   key: state.pageKey,
                   child: const TasksScreen(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
             ],
@@ -85,15 +68,9 @@ class AppRouter {
               GoRoute(
                 path: AppRoutes.profile,
                 name: 'profile',
-                pageBuilder: (context, state) => CustomTransitionPage(
+                pageBuilder: (context, state) => AppPageRoute(
                   key: state.pageKey,
                   child: const ProfileScreen(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
             ],
