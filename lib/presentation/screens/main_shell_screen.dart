@@ -86,7 +86,6 @@ class _MainShellScreenState extends State<MainShellScreen> with TickerProviderSt
       if (mounted) {
         setState(() => _isModalOpen = false);
       }
-      _addTaskSheetController?.dispose();
       _addTaskSheetController = null;
     });
   }
