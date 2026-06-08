@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'focus_session_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -107,8 +109,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
               // Focus Mode Card with entry and floating animations
               ViewportAnimatedCard(
                 scrollController: _scrollController,
-                child: FloatingCard(
-                  child: Container(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const FocusSessionScreen(),
+                      ),
+                    );
+                  },
+                  child: FloatingCard(
+                    child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primaryContainer.withValues(alpha: isDark ? 0.15 : 0.3),
@@ -184,6 +194,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   ),
                 ),
               ),
+            ),
               const SizedBox(height: 32),
 
               // Recommended Articles Header
@@ -300,12 +311,13 @@ class _ViewportAnimatedCardState extends State<ViewportAnimatedCard> with Single
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _animController,
+      child: widget.child,
       builder: (context, child) {
         return Opacity(
           opacity: _opacityAnimation.value,
           child: Transform.translate(
             offset: Offset(0, _slideAnimation.value),
-            child: widget.child,
+            child: child,
           ),
         );
       },
@@ -322,17 +334,19 @@ class FloatingCard extends StatefulWidget {
   State<FloatingCard> createState() => _FloatingCardState();
 }
 
-class _FloatingCardState extends State<FloatingCard> with SingleTickerProviderStateMixin {
+class _FloatingCardState extends State<FloatingCard> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _floatController;
   late Animation<double> _floatAnimation;
+  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
+    );
 
     _floatAnimation = Tween<double>(begin: -4.0, end: 4.0).animate(
       CurvedAnimation(
@@ -343,19 +357,47 @@ class _FloatingCardState extends State<FloatingCard> with SingleTickerProviderSt
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (mounted) {
+      setState(() {
+        _lifecycleState = state;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _floatController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    bool isSelected = false;
+    try {
+      isSelected = StatefulNavigationShell.of(context).currentIndex == 1;
+    } catch (_) {
+      isSelected = true;
+    }
+
+    if (isSelected && _lifecycleState == AppLifecycleState.resumed) {
+      if (!_floatController.isAnimating) {
+        _floatController.repeat(reverse: true);
+      }
+    } else {
+      if (_floatController.isAnimating) {
+        _floatController.stop();
+      }
+    }
+
     return AnimatedBuilder(
       animation: _floatAnimation,
+      child: widget.child,
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(0.0, _floatAnimation.value),
-          child: widget.child,
+          child: child,
         );
       },
     );

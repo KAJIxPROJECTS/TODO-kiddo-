@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:todo_app/presentation/providers/profile_providers.dart';
+import 'package:todo_app/presentation/providers/task_providers.dart';
+import 'notification_settings_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -9,7 +14,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _entryController;
   late Animation<double> _avatarScale;
 
@@ -21,10 +27,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       duration: const Duration(milliseconds: 600),
     );
     _avatarScale = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entryController,
-        curve: Curves.easeOutBack,
-      ),
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutBack),
     );
     _entryController.forward();
   }
@@ -37,73 +40,110 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
 
   void _showEditProfileDialog(BuildContext context, ProfileState profile) {
     final nameController = TextEditingController(text: profile.name);
-    final urlController = TextEditingController(text: profile.imageUrl);
+    String tempImagePath = profile.imageUrl;
 
     showDialog(
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          title: Text(
-            'Edit Profile',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Name',
-                  prefixIcon: const Icon(Icons.person_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            ImageProvider displayImage;
+            if (tempImagePath.startsWith('http') ||
+                tempImagePath.startsWith('blob:') ||
+                tempImagePath.startsWith('data:')) {
+              displayImage = NetworkImage(tempImagePath);
+            } else {
+              displayImage = FileImage(File(tempImagePath));
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              title: Text(
+                'Edit Profile',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      try {
+                        final ImagePicker picker = ImagePicker();
+                        final XFile? image = await picker.pickImage(
+                          source: ImageSource.gallery,
+                        );
+                        if (image != null) {
+                          setState(() {
+                            tempImagePath = image.path;
+                          });
+                        }
+                      } catch (_) {}
+                    },
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundImage: displayImage,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: urlController,
-                decoration: InputDecoration(
-                  labelText: 'Profile Image URL',
-                  prefixIcon: const Icon(Icons.image_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Name',
+                      prefixIcon: const Icon(Icons.person_rounded),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(profileProvider.notifier).updateProfile(
-                  nameController.text.trim(),
-                  urlController.text.trim(),
-                );
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
                 ),
-              ),
-              child: const Text('Save'),
-            ),
-          ],
+                ElevatedButton(
+                  onPressed: () {
+                    ref
+                        .read(profileProvider.notifier)
+                        .updateProfile(
+                          nameController.text.trim(),
+                          tempImagePath,
+                        );
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -113,6 +153,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final profile = ref.watch(profileProvider);
+    final completedTasksCount = ref.watch(
+      tasksProvider.select((tasks) => tasks.where((t) => t.completed).length),
+    );
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -159,13 +202,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.2,
+                                ),
                                 blurRadius: 16,
                                 offset: const Offset(0, 8),
                               ),
                             ],
                             image: DecorationImage(
-                              image: NetworkImage(profile.imageUrl),
+                              image: profile.imageProvider,
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -208,7 +253,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 children: [
                   Expanded(
                     child: _ProfileStatTile(
-                      value: 42,
+                      value: completedTasksCount,
                       suffix: '',
                       label: 'Completed',
                       color: theme.colorScheme.primary,
@@ -253,23 +298,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                         icon: Icons.notifications_none_rounded,
                         title: 'Notifications',
                         subtitle: 'Alerts, task reminders, daily briefing',
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const NotificationSettingsScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    Divider(height: 1, color: theme.colorScheme.onSurface.withValues(alpha: 0.05)),
+                    Divider(
+                      height: 1,
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.05,
+                      ),
+                    ),
                     StaggeredEntrance(
                       delay: const Duration(milliseconds: 50),
                       child: _SettingsItem(
                         icon: Icons.help_outline_rounded,
                         title: 'Help & Support',
-                        subtitle: 'FAQs, contact developer, report bug',
-                        onTap: () {},
+                        subtitle: 'National Suicide Help & Support of India',
+                        onTap: () async {
+                          final Uri url = Uri.parse('tel:14416');
+                          try {
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url);
+                            } else {
+                              final Uri webUrl = Uri.parse(
+                                'https://www.telemanas.mohfw.gov.in',
+                              );
+                              await launchUrl(
+                                webUrl,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            }
+                          } catch (_) {}
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
-              
+
               // Spacing at the bottom so elements don't get covered by the floating navbar
               const SizedBox(height: 80),
             ],
@@ -296,7 +368,8 @@ class CountingText extends StatefulWidget {
   State<CountingText> createState() => _CountingTextState();
 }
 
-class _CountingTextState extends State<CountingText> with SingleTickerProviderStateMixin {
+class _CountingTextState extends State<CountingText>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<int> _animation;
 
@@ -307,9 +380,10 @@ class _CountingTextState extends State<CountingText> with SingleTickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
-    _animation = IntTween(begin: 0, end: widget.targetValue).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    _animation = IntTween(
+      begin: 0,
+      end: widget.targetValue,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.forward();
   }
 
@@ -324,10 +398,7 @@ class _CountingTextState extends State<CountingText> with SingleTickerProviderSt
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return Text(
-          '${_animation.value}${widget.suffix}',
-          style: widget.style,
-        );
+        return Text('${_animation.value}${widget.suffix}', style: widget.style);
       },
     );
   }
@@ -347,7 +418,8 @@ class StaggeredEntrance extends StatefulWidget {
   State<StaggeredEntrance> createState() => _StaggeredEntranceState();
 }
 
-class _StaggeredEntranceState extends State<StaggeredEntrance> with SingleTickerProviderStateMixin {
+class _StaggeredEntranceState extends State<StaggeredEntrance>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<Offset> _slide;
@@ -359,12 +431,14 @@ class _StaggeredEntranceState extends State<StaggeredEntrance> with SingleTicker
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-    _slide = Tween<Offset>(begin: const Offset(0.0, 0.2), end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    _opacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _slide = Tween<Offset>(
+      begin: const Offset(0.0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     Future.delayed(widget.delay, () {
       if (mounted) {
@@ -383,10 +457,7 @@ class _StaggeredEntranceState extends State<StaggeredEntrance> with SingleTicker
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _opacity,
-      child: SlideTransition(
-        position: _slide,
-        child: widget.child,
-      ),
+      child: SlideTransition(position: _slide, child: widget.child),
     );
   }
 }
@@ -457,7 +528,8 @@ class _SettingsItem extends StatefulWidget {
   State<_SettingsItem> createState() => _SettingsItemState();
 }
 
-class _SettingsItemState extends State<_SettingsItem> with SingleTickerProviderStateMixin {
+class _SettingsItemState extends State<_SettingsItem>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pressController;
   late Animation<double> _scaleAnimation;
 
@@ -501,7 +573,11 @@ class _SettingsItemState extends State<_SettingsItem> with SingleTickerProviderS
                 color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(widget.icon, color: theme.colorScheme.primary, size: 20),
+              child: Icon(
+                widget.icon,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
             ),
             title: Text(
               widget.title,
@@ -514,7 +590,9 @@ class _SettingsItemState extends State<_SettingsItem> with SingleTickerProviderS
             subtitle: Text(
               widget.subtitle,
               style: TextStyle(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
                 fontSize: 12,
               ),
             ),

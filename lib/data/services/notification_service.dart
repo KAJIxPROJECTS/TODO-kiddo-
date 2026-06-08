@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hive/hive.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/task_model.dart';
@@ -68,13 +69,26 @@ class NotificationService {
 
   Future<void> scheduleTaskNotification(Task task) async {
     if (kIsWeb) return;
+    
+    bool enabled = true;
+    String filter = 'All';
+    try {
+      if (Hive.isBoxOpen('profile_box')) {
+        final box = Hive.box('profile_box');
+        enabled = box.get('notif_enabled', defaultValue: true) as bool;
+        filter = box.get('notif_filter', defaultValue: 'All') as String;
+      }
+    } catch (_) {}
+
+    if (!enabled) return;
+    if (filter == 'High' && task.priority != TaskPriority.high) return;
+
     if (task.dueDate == null || task.completed) return;
 
-    // Notify exactly at the due date
     final scheduledDate = tz.TZDateTime.from(task.dueDate!.toUtc(), tz.UTC);
     
     if (scheduledDate.isBefore(tz.TZDateTime.now(tz.UTC))) {
-      return; // Can't schedule in the past
+      return;
     }
 
     final int notificationId = task.id.hashCode;
@@ -104,7 +118,7 @@ class NotificationService {
       body: 'Your task "${task.title}" is due now!',
       scheduledDate: scheduledDate,
       notificationDetails: platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
@@ -118,11 +132,41 @@ class NotificationService {
     await _notificationsPlugin.cancel(id: id.hashCode);
   }
 
-  Future<void> scheduleDailyReminder() async {
+  Future<void> cancelDailyReminder() async {
     if (kIsWeb) return;
-    // Schedule a daily reminder at 9:00 AM
+    await _notificationsPlugin.cancel(id: 0);
+  }
+
+  Future<void> showTestNotification() async {
+    if (kIsWeb) return;
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'test_channel',
+      'Test Notifications',
+      channelDescription: 'Channel for testing notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+    await _notificationsPlugin.show(
+      id: 999,
+      title: 'Test Notification',
+      body: 'This is a test notification from your Advanced settings!',
+      notificationDetails: platformDetails,
+    );
+  }
+
+  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) async {
+    if (kIsWeb) return;
     final now = DateTime.now();
-    var scheduledTime = DateTime(now.year, now.month, now.day, 9, 0);
+    var scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
     if (scheduledTime.isBefore(now)) {
       scheduledTime = scheduledTime.add(const Duration(days: 1));
     }
@@ -154,7 +198,7 @@ class NotificationService {
       body: 'Check your tasks for today and stay productive!',
       scheduledDate: scheduledDate,
       notificationDetails: platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }

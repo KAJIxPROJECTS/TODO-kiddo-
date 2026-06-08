@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:todo_app/presentation/providers/task_providers.dart';
 import 'package:todo_app/presentation/providers/profile_providers.dart';
 import 'package:todo_app/data/models/task_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  static const List<int> dates = [7, 8, 9, 10, 11, 12, 13];
+  static const List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -34,23 +38,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final tasks = ref.watch(tasksProvider);
-    final profile = ref.watch(profileProvider);
-
-    // Filter today's tasks based on the selected date chip
-    final dates = [7, 8, 9, 10, 11, 12, 13];
-    final selectedDay = dates[_selectedDateIndex];
-    final todayTasks = tasks.where((task) {
-      final dateToCheck = task.dueDate ?? task.createdAt;
-      return dateToCheck.day == selectedDay;
-    }).toList();
-
-    // Stats calculations
-    final totalCount = todayTasks.length;
-    final completedCount = todayTasks.where((t) => t.completed).length;
-    final pendingCount = totalCount - completedCount;
-    final progress = totalCount > 0 ? (completedCount / totalCount) : 0.0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -74,49 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Greeting Section & User Avatar with Hero transition
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Hi, ${profile.name}',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: theme.colorScheme.onSurface,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        // User can navigate to profile tab or tap to trigger transition
-                      },
-                      child: Hero(
-                        tag: 'user-avatar',
-                        child: Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFFBBF24), // Yellow accent border
-                              width: 1.5,
-                            ),
-                            image: DecorationImage(
-                              image: NetworkImage(profile.imageUrl),
-                              fit: BoxFit.cover,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                const _HomeHeader(),
                 const SizedBox(height: 24),
 
                 // Horizontal Date Selector (Animate selection and expands smoothly)
@@ -156,116 +101,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 12),
 
                 // Horizontal Scroll for Motivational Card & Evening Card (Fades & slides when changing dates)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  transitionBuilder: (child, animation) => FadeSlideTransition(
-                    animation: animation,
-                    child: child,
-                  ),
-                  child: SizedBox(
-                    key: ValueKey(_selectedDateIndex),
-                    height: 200,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        // Main Motivational Card showing completed tasks progress
-                        Container(
-                          width: 260,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD97D), // Main Yellow Accent Card
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFFD97D).withValues(alpha: 0.25),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 4),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Let\'s start your day',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      totalCount > 0
-                                          ? '$completedCount of $totalCount tasks completed ($pendingCount pending)'
-                                          : 'No tasks scheduled for today.',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF6B4E1B),
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    // Progress bar
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: LinearProgressIndicator(
-                                        value: progress,
-                                        backgroundColor: Colors.black.withValues(alpha: 0.08),
-                                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6B4E1B)),
-                                        minHeight: 6,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Spacer(),
-                              // Cute Sun & Hill Illustration (CustomPainter)
-                              const MorningSunIllustration(),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        
-                        // Evening Card
-                        Container(
-                          width: 80,
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF2C2C35) : const Color(0xFFDDD7CD),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              RotatedBox(
-                                quarterTurns: 3,
-                                child: Text(
-                                  'Evening',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: isDark ? Colors.white70 : const Color(0xFF5A554C),
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                _JournalProgressCard(
+                  selectedDateIndex: _selectedDateIndex,
                 ),
                 const SizedBox(height: 32),
 
@@ -295,138 +132,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 12),
 
                 // Dynamic List of Today's Tasks (Animate when changing dates/data)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  transitionBuilder: (child, animation) => FadeSlideTransition(
-                    animation: animation,
-                    child: child,
-                  ),
-                  child: totalCount == 0 && tasks.isEmpty
-                      ? const SkeletonTaskLoader(key: ValueKey('skeleton'))
-                      : todayTasks.isEmpty
-                          ? Container(
-                              key: ValueKey('empty_$_selectedDateIndex'),
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: theme.cardTheme.color,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline_rounded,
-                                    size: 48,
-                                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'All caught up!',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'No tasks scheduled for today. Tap the + button to add one.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : AnimatedTodayTaskList(
-                              key: ValueKey('list_$_selectedDateIndex'),
-                              tasks: todayTasks,
-                              onToggle: (id) {
-                                ref.read(tasksProvider.notifier).toggleTaskCompletion(id);
-                              },
-                              onDelete: (id) {
-                                ref.read(tasksProvider.notifier).deleteTask(id);
-                              },
-                              getCategoryColor: _getCategoryColor,
-                            ),
+                _TodayTasksSection(
+                  selectedDateIndex: _selectedDateIndex,
+                  getCategoryColor: _getCategoryColor,
                 ),
                 const SizedBox(height: 32),
-
-                // Quick Actions / Journal Cards Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Quick Journal',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      child: const Text(
-                        'See all',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Horizontal Scroll View of Quick Action Cards (Animate when changing dates)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  transitionBuilder: (child, animation) => FadeSlideTransition(
-                    animation: animation,
-                    child: child,
-                  ),
-                  child: SizedBox(
-                    key: ValueKey(_selectedDateIndex),
-                    height: 160,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _QuickActionCard(
-                          title: 'Pause & reflect 🌱',
-                          subtitle: 'What are you grateful for today?',
-                          cardColor: isDark ? const Color(0xFF3B2E2E) : const Color(0xFFFEE2E2),
-                          tagText: 'Personal',
-                          tagColor: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
-                        ),
-                        const SizedBox(width: 16),
-                        _QuickActionCard(
-                          title: 'Set Intentions 😊',
-                          subtitle: 'How do you want to feel?',
-                          cardColor: isDark ? const Color(0xFF2E323F) : const Color(0xFFEEF2FF),
-                          tagText: 'Family',
-                          tagColor: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3),
-                        ),
-                        const SizedBox(width: 16),
-                        _QuickActionCard(
-                          title: 'Emotions 📊',
-                          subtitle: 'Reflect on your mood.',
-                          cardColor: isDark ? const Color(0xFF2E3B35) : const Color(0xFFECFDF5),
-                          tagText: 'Self',
-                          tagColor: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
                 // Spacing at the bottom to prevent floating navbar overlap
                 const SizedBox(height: 96),
@@ -435,6 +145,280 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HomeHeader extends ConsumerWidget {
+  const _HomeHeader();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profile = ref.watch(profileProvider);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Hi, ${profile.name}',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: theme.colorScheme.onSurface,
+            letterSpacing: -0.5,
+          ),
+        ),
+        GestureDetector(
+          onTap: () {},
+          child: Hero(
+            tag: 'user-avatar',
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFFBBF24), // Yellow accent border
+                  width: 1.5,
+                ),
+                image: DecorationImage(
+                  image: profile.imageProvider,
+                  fit: BoxFit.cover,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _JournalProgressCard extends ConsumerWidget {
+  final int selectedDateIndex;
+
+  const _JournalProgressCard({
+    required this.selectedDateIndex,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final tasks = ref.watch(tasksProvider);
+
+    final selectedDay = HomeScreen.dates[selectedDateIndex];
+    final todayTasks = tasks.where((task) {
+      final dateToCheck = task.dueDate ?? task.createdAt;
+      return dateToCheck.day == selectedDay;
+    }).toList();
+
+    // Stats calculations
+    final totalCount = todayTasks.length;
+    final completedCount = todayTasks.where((t) => t.completed).length;
+    final pendingCount = totalCount - completedCount;
+    final progress = totalCount > 0 ? (completedCount / totalCount) : 0.0;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder: (child, animation) => FadeSlideTransition(
+        animation: animation,
+        child: child,
+      ),
+      child: SizedBox(
+        key: ValueKey(selectedDateIndex),
+        height: 200,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            Container(
+              width: 260,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD97D), // Main Yellow Accent Card
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD97D).withValues(alpha: 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Let\'s start your day',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          totalCount > 0
+                              ? '$completedCount of $totalCount tasks completed ($pendingCount pending)'
+                              : 'No tasks scheduled for today.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B4E1B),
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.black.withValues(alpha: 0.08),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6B4E1B)),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  const MorningSunIllustration(),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Container(
+              width: 80,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2C2C35) : const Color(0xFFDDD7CD),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  RotatedBox(
+                    quarterTurns: 3,
+                    child: Text(
+                      'Evening',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white70 : const Color(0xFF5A554C),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayTasksSection extends ConsumerWidget {
+  final int selectedDateIndex;
+  final Color Function(String category) getCategoryColor;
+
+  const _TodayTasksSection({
+    required this.selectedDateIndex,
+    required this.getCategoryColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tasks = ref.watch(tasksProvider);
+
+    final selectedDay = HomeScreen.dates[selectedDateIndex];
+    final todayTasks = tasks.where((task) {
+      final dateToCheck = task.dueDate ?? task.createdAt;
+      return dateToCheck.day == selectedDay;
+    }).toList();
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder: (child, animation) => FadeSlideTransition(
+        animation: animation,
+        child: child,
+      ),
+      child: todayTasks.isEmpty && tasks.isEmpty
+          ? const SkeletonTaskLoader(key: ValueKey('skeleton'))
+          : todayTasks.isEmpty
+              ? Container(
+                  key: ValueKey('empty_$selectedDateIndex'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: theme.cardTheme.color,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 48,
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'All caught up!',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'No tasks scheduled for today. Tap the + button to add one.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : AnimatedTodayTaskList(
+                  key: ValueKey('list_$selectedDateIndex'),
+                  tasks: todayTasks,
+                  onToggle: (id) {
+                    ref.read(tasksProvider.notifier).toggleTaskCompletion(id);
+                  },
+                  onDelete: (id) {
+                    ref.read(tasksProvider.notifier).deleteTask(id);
+                  },
+                  getCategoryColor: getCategoryColor,
+                ),
     );
   }
 }
@@ -480,8 +464,8 @@ class DateSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final dates = [7, 8, 9, 10, 11, 12, 13];
+    const days = HomeScreen.days;
+    const dates = HomeScreen.dates;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -563,22 +547,34 @@ class SkeletonTaskLoader extends StatefulWidget {
 }
 
 class _SkeletonTaskLoaderState extends State<SkeletonTaskLoader>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _controller;
   late Animation<double> _animation;
+  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
+    );
     _animation = Tween<double>(begin: 0.3, end: 0.7).animate(_controller);
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (mounted) {
+      setState(() {
+        _lifecycleState = state;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
@@ -586,6 +582,24 @@ class _SkeletonTaskLoaderState extends State<SkeletonTaskLoader>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    bool isSelected = false;
+    try {
+      isSelected = StatefulNavigationShell.of(context).currentIndex == 0;
+    } catch (_) {
+      isSelected = true;
+    }
+
+    if (isSelected && _lifecycleState == AppLifecycleState.resumed) {
+      if (!_controller.isAnimating) {
+        _controller.repeat(reverse: true);
+      }
+    } else {
+      if (_controller.isAnimating) {
+        _controller.stop();
+      }
+    }
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -1055,99 +1069,4 @@ class _TaskRowItemState extends State<_TaskRowItem> with SingleTickerProviderSta
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Color cardColor;
-  final String tagText;
-  final Color tagColor;
 
-  const _QuickActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.cardColor,
-    required this.tagText,
-    required this.tagColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      width: 170,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Expanded(
-            child: Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.white70 : Colors.black54,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 8),
-          
-          // Tags
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Today',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white60 : Colors.black54,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white12 : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  tagText,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: tagColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}

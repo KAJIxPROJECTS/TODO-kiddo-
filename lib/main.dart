@@ -9,19 +9,36 @@ import 'package:todo_app/presentation/providers/task_providers.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive
+  // Initialize Hive base
   await Hive.initFlutter();
-  await Hive.openBox('profile_box');
 
-  // Initialize Task Repository and register adapters
   final taskRepository = HiveTaskRepository();
-  await taskRepository.init();
-
-  // Initialize Local Notifications
   final notificationService = NotificationService();
-  await notificationService.init();
-  await notificationService.requestPermissions();
-  await notificationService.scheduleDailyReminder();
+
+  // Initialize data boxes and services in parallel
+  await Future.wait([
+    Hive.openBox('profile_box'),
+    taskRepository.init(),
+    notificationService.init(),
+  ]);
+
+  notificationService.requestPermissions().then((_) {
+    int hour = 9;
+    int minute = 0;
+    bool enabled = true;
+    try {
+      final box = Hive.box('profile_box');
+      enabled = box.get('notif_enabled', defaultValue: true) as bool;
+      hour = box.get('notif_hour', defaultValue: 9) as int;
+      minute = box.get('notif_minute', defaultValue: 0) as int;
+    } catch (_) {}
+
+    if (enabled) {
+      notificationService.scheduleDailyReminder(hour: hour, minute: minute);
+    } else {
+      notificationService.cancelDailyReminder();
+    }
+  });
 
   runApp(
     ProviderScope(

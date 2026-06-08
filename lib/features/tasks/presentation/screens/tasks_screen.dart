@@ -148,9 +148,24 @@ class _TasksScreenState extends ConsumerState<TasksScreen> with SingleTickerProv
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildTaskList(theme, showCompleted: null),
-                    _buildTaskList(theme, showCompleted: false),
-                    _buildTaskList(theme, showCompleted: true),
+                    _TasksTabContent(
+                      showCompleted: null,
+                      selectedFilter: _selectedFilter,
+                      getPriorityColor: _getPriorityColor,
+                      getCategoryColor: _getCategoryColor,
+                    ),
+                    _TasksTabContent(
+                      showCompleted: false,
+                      selectedFilter: _selectedFilter,
+                      getPriorityColor: _getPriorityColor,
+                      getCategoryColor: _getCategoryColor,
+                    ),
+                    _TasksTabContent(
+                      showCompleted: true,
+                      selectedFilter: _selectedFilter,
+                      getPriorityColor: _getPriorityColor,
+                      getCategoryColor: _getCategoryColor,
+                    ),
                   ],
                 ),
               ),
@@ -160,8 +175,24 @@ class _TasksScreenState extends ConsumerState<TasksScreen> with SingleTickerProv
       ),
     );
   }
+}
 
-  Widget _buildTaskList(ThemeData theme, {bool? showCompleted}) {
+class _TasksTabContent extends ConsumerWidget {
+  final bool? showCompleted;
+  final String selectedFilter;
+  final Color Function(TaskPriority priority) getPriorityColor;
+  final Color Function(String category) getCategoryColor;
+
+  const _TasksTabContent({
+    required this.showCompleted,
+    required this.selectedFilter,
+    required this.getPriorityColor,
+    required this.getCategoryColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final allTasks = ref.watch(tasksProvider);
 
     // Filter tasks based on completed state & active filter chip
@@ -169,7 +200,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> with SingleTickerProv
       if (showCompleted != null && task.completed != showCompleted) {
         return false;
       }
-      if (_selectedFilter != 'All' && task.category.toLowerCase() != _selectedFilter.toLowerCase()) {
+      if (selectedFilter != 'All' && task.category.toLowerCase() != selectedFilter.toLowerCase()) {
         return false;
       }
       return true;
@@ -202,8 +233,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> with SingleTickerProv
       tasks: filteredTasks,
       onToggle: (id) => ref.read(tasksProvider.notifier).toggleTaskCompletion(id),
       onDelete: (id) => ref.read(tasksProvider.notifier).deleteTask(id),
-      getPriorityColor: _getPriorityColor,
-      getCategoryColor: _getCategoryColor,
+      getPriorityColor: getPriorityColor,
+      getCategoryColor: getCategoryColor,
     );
   }
 }

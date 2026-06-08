@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -6,6 +9,17 @@ class ProfileState {
   final String imageUrl;
 
   ProfileState({required this.name, required this.imageUrl});
+
+  ImageProvider get imageProvider {
+    if (imageUrl.startsWith('http') || imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
+      return NetworkImage(imageUrl);
+    } else {
+      if (kIsWeb) {
+        return const NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
+      }
+      return FileImage(File(imageUrl));
+    }
+  }
 }
 
 class ProfileNotifier extends StateNotifier<ProfileState> {

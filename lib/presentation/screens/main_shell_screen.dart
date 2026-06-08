@@ -17,8 +17,9 @@ class MainShellScreen extends StatefulWidget {
   State<MainShellScreen> createState() => _MainShellScreenState();
 }
 
-class _MainShellScreenState extends State<MainShellScreen> with SingleTickerProviderStateMixin {
+class _MainShellScreenState extends State<MainShellScreen> with TickerProviderStateMixin {
   late AnimationController _tabTransitionController;
+  AnimationController? _addTaskSheetController;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _MainShellScreenState extends State<MainShellScreen> with SingleTickerProv
   @override
   void dispose() {
     _tabTransitionController.dispose();
+    _addTaskSheetController?.dispose();
     super.dispose();
   }
 
@@ -67,21 +69,25 @@ class _MainShellScreenState extends State<MainShellScreen> with SingleTickerProv
 
   void _showAddTaskBottomSheet() {
     setState(() => _isModalOpen = true);
+    _addTaskSheetController?.dispose();
+    _addTaskSheetController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+      reverseDuration: const Duration(milliseconds: 250),
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      transitionAnimationController: AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 250),
-        reverseDuration: const Duration(milliseconds: 250),
-      ),
+      transitionAnimationController: _addTaskSheetController,
       builder: (context) => const AddTaskBottomSheet(),
     ).then((_) {
       if (mounted) {
         setState(() => _isModalOpen = false);
       }
+      _addTaskSheetController?.dispose();
+      _addTaskSheetController = null;
     });
   }
 
