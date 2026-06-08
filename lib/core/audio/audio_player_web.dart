@@ -1,8 +1,14 @@
-import 'dart:js' as js;
+import 'dart:js_interop';
+
+@JS('eval')
+external void jsEval(JSString code);
+
+@JS('playWebNotificationSound')
+external void jsPlayWebNotificationSound(JSString soundId);
 
 void playNotificationSound(String soundId) {
   try {
-    js.context.callMethod('eval', ["""
+    jsEval("""
       if (!window.playWebNotificationSound) {
         window.playWebNotificationSound = function(soundId) {
           try {
@@ -133,7 +139,7 @@ void playNotificationSound(String soundId) {
           } catch(e) {}
         };
       }
-    """]);
-    js.context.callMethod('playWebNotificationSound', [soundId]);
+    """.toJS);
+    jsPlayWebNotificationSound(soundId.toJS);
   } catch (_) {}
 }
