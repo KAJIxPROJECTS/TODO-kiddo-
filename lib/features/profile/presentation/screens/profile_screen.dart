@@ -49,7 +49,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         return StatefulBuilder(
           builder: (context, setState) {
             ImageProvider displayImage;
-            if (tempImagePath.startsWith('http') ||
+            if (tempImagePath.startsWith('assets/')) {
+              displayImage = AssetImage(tempImagePath);
+            } else if (tempImagePath.startsWith('http') ||
                 tempImagePath.startsWith('blob:') ||
                 tempImagePath.startsWith('data:')) {
               displayImage = NetworkImage(tempImagePath);

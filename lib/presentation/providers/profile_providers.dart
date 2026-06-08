@@ -11,11 +11,14 @@ class ProfileState {
   ProfileState({required this.name, required this.imageUrl});
 
   ImageProvider get imageProvider {
+    if (imageUrl.startsWith('assets/')) {
+      return AssetImage(imageUrl);
+    }
     if (imageUrl.startsWith('http') || imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
       return NetworkImage(imageUrl);
     } else {
       if (kIsWeb) {
-        return const NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
+        return const AssetImage('assets/images/default_pfp.jpg');
       }
       return FileImage(File(imageUrl));
     }
@@ -36,20 +39,20 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   static String _getDefaultName() {
     try {
       if (Hive.isBoxOpen(_boxName)) {
-        return Hive.box(_boxName).get(_nameKey, defaultValue: 'Alex Johnson') as String;
+        return Hive.box(_boxName).get(_nameKey, defaultValue: 'HUMAN') as String;
       }
     } catch (_) {}
-    return 'Alex Johnson';
+    return 'HUMAN';
   }
 
   static String _getDefaultImageUrl() {
     try {
       if (Hive.isBoxOpen(_boxName)) {
         return Hive.box(_boxName).get(_imageKey,
-            defaultValue: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150') as String;
+            defaultValue: 'assets/images/default_pfp.jpg') as String;
       }
     } catch (_) {}
-    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+    return 'assets/images/default_pfp.jpg';
   }
 
   void updateProfile(String newName, String newImageUrl) {

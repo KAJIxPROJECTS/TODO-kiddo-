@@ -142,44 +142,36 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    // 1. Verify initial home greeting name is 'Alex Johnson'
-    expect(find.text('Hi, Alex Johnson'), findsOneWidget);
+    expect(find.text('Hi, HUMAN'), findsOneWidget);
 
-    // 2. Switch to Profile tab
     final profileTab = find.text('Profile');
     expect(profileTab, findsOneWidget);
     await tester.tap(profileTab);
     await tester.pumpAndSettle();
 
-    // 3. Verify email 'alex.johnson@example.com' is removed and the name is 'Alex Johnson'
     expect(find.text('alex.johnson@example.com'), findsNothing);
-    expect(find.text('Alex Johnson'), findsOneWidget);
+    expect(find.text('HUMAN'), findsOneWidget);
 
     final editIcon = find.byIcon(Icons.edit_rounded);
     expect(editIcon, findsOneWidget);
     await tester.tap(editIcon);
     await tester.pumpAndSettle();
 
-    // 5. Verify the dialog title 'Edit Profile' is displayed
     expect(find.text('Edit Profile'), findsOneWidget);
 
-    // 6. Locate Name text field, clear it, and type 'Alex Miller'
     final nameField = find.widgetWithText(TextField, 'Name');
     expect(nameField, findsOneWidget);
     await tester.enterText(nameField, 'Alex Miller');
     await tester.pumpAndSettle();
 
-    // 7. Tap 'Save'
     final saveButton = find.text('Save');
     expect(saveButton, findsOneWidget);
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
 
-    // 8. Verify the Profile screen name displays 'Alex Miller' and no longer 'Alex Johnson'
     expect(find.text('Alex Miller'), findsOneWidget);
-    expect(find.text('Alex Johnson'), findsNothing);
+    expect(find.text('HUMAN'), findsNothing);
 
-    // 9. Switch back to the Home tab
     final homeTab = find.text('Home');
     expect(homeTab, findsOneWidget);
     await tester.tap(homeTab);
@@ -187,7 +179,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    // 10. Verify greeting updated to 'Hi, Alex Miller'
     expect(find.text('Hi, Alex Miller'), findsOneWidget);
   });
 }
