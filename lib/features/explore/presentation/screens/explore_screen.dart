@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'focus_session_screen.dart';
+import 'article_detail_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -38,6 +39,34 @@ class _ExploreScreenState extends State<ExploreScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    const article1Content = 
+        'We live in a culture that glorifies busyness. We often feel compelled to say yes to every request, project, or social invitation, leading to burnout. '
+        'Saying no to the unimportant allows you to say yes to the essential. It protects your time and energy for what truly matters.\n\n'
+        'How to say no:\n'
+        '• Be direct but polite: "Thank you for thinking of me, but I don\'t have the capacity for this right now."\n'
+        '• Suggest an alternative: "I can\'t do this, but I can point you to someone else who might help."\n'
+        '• Buy yourself time: "Let me check my calendar and get back to you."\n\n'
+        'Decluttering your schedule isn\'t about being lazy; it\'s about being intentional. Start small and practice boundary setting.';
+
+    const article2Content =
+        '1. Stick to a sleep schedule: Go to bed and wake up at the same time every day, even on weekends. This reinforces your body\'s sleep-wake cycle.\n\n'
+        '2. Create a restful environment: Keep your bedroom dark, quiet, and cool. Consider blackout curtains, earplugs, or white noise.\n\n'
+        '3. Limit screen time before bed: Avoid blue light from phones, tablets, and TVs for at least an hour before sleep. Blue light suppresses melatonin production.\n\n'
+        '4. Watch what you eat and drink: Avoid heavy meals, caffeine, and alcohol close to bedtime.\n\n'
+        '5. Develop a wind-down routine: Read a physical book, take a warm bath, or practice light stretching to signal your body it\'s time to rest.\n\n'
+        '6. Manage worries: Write down your thoughts or to-do lists before bed so you don\'t ruminate on them in the dark.\n\n'
+        '7. Get daily sunlight: Exposure to natural light during the day helps regulate your circadian rhythm.\n\n'
+        '8. Incorporate physical activity: Regular exercise improves sleep quality, but avoid working out right before bed.\n\n'
+        '9. Optimize your bedding: Invest in a comfortable mattress and pillows that support your posture.\n\n'
+        '10. Keep naps short: Limit daytime naps to 20-30 minutes to avoid disrupting night-time sleep.';
+
+    const article3Content =
+        'A cluttered desk leads to a cluttered mind. Keeping only the essentials on your desk helps minimize visual distractions.\n\n'
+        'Ergonomics Matter: Set up your chair and desk height so your elbows are at a 90-degree angle and your eyes are level with the top of your screen.\n\n'
+        'Let There Be Light: Position your desk near a window to receive natural light, which boosts mood and energy. Supplement with a warm, adjustable desk lamp.\n\n'
+        'Digital Organization: Clean up your computer desktop, close unnecessary browser tabs, and organize files into clean folders.\n\n'
+        'Add a Touch of Greenery: A small indoor plant (like a succulent or snake plant) improves air quality and adds a refreshing visual element to your workspace.';
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -62,49 +91,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Search Bar with scale shrink animation
-              ValueListenableBuilder<double>(
-                valueListenable: _scrollOffsetNotifier,
-                builder: (context, offset, child) {
-                  final shrinkFactor = (offset / 200).clamp(0.0, 1.0);
-                  final scale = 1.0 - (shrinkFactor * 0.07);
-                  return Transform.scale(
-                    scale: scale,
-                    alignment: Alignment.center,
-                    child: child,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search_rounded,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Search focus music, articles, tips...',
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
 
               // Focus Mode Card with entry and floating animations
               ViewportAnimatedCard(
@@ -215,6 +201,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   readTime: '5 min read',
                   category: 'Workplace',
                   gradientColors: [Colors.purple, Colors.pink],
+                  content: article1Content,
                 ),
               ),
               ViewportAnimatedCard(
@@ -224,6 +211,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   readTime: '8 min read',
                   category: 'Well-being',
                   gradientColors: [Colors.teal, Colors.green],
+                  content: article2Content,
                 ),
               ),
               ViewportAnimatedCard(
@@ -233,6 +221,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   readTime: '6 min read',
                   category: 'Minimalism',
                   gradientColors: [Colors.blue, Colors.cyan],
+                  content: article3Content,
                 ),
               ),
               
@@ -409,85 +398,102 @@ class _ArticleItem extends StatelessWidget {
   final String readTime;
   final String category;
   final List<Color> gradientColors;
+  final String content;
 
   const _ArticleItem({
     required this.title,
     required this.readTime,
     required this.category,
     required this.gradientColors,
+    required this.content,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.02),
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ArticleDetailScreen(
+              title: title,
+              readTime: readTime,
+              category: category,
+              gradientColors: gradientColors,
+              content: content,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.02),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: gradientColors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+        child: Row(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: gradientColors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
               ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.menu_book_rounded,
-                color: Colors.white,
-                size: 28,
+              child: const Center(
+                child: Icon(
+                  Icons.menu_book_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: gradientColors[0],
-                    letterSpacing: 1,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: gradientColors[0],
+                      letterSpacing: 1,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                    color: theme.colorScheme.onSurface,
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      height: 1.3,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  readTime,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  const SizedBox(height: 6),
+                  Text(
+                    readTime,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
