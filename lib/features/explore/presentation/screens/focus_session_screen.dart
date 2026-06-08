@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 class FocusSessionScreen extends StatefulWidget {
-  const FocusSessionScreen({super.key});
+  final int durationMinutes;
+  const FocusSessionScreen({super.key, this.durationMinutes = 25});
 
   @override
   State<FocusSessionScreen> createState() => _FocusSessionScreenState();
@@ -11,7 +12,8 @@ class FocusSessionScreen extends StatefulWidget {
 
 class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTickerProviderStateMixin {
   late Timer _timer;
-  int _secondsRemaining = 1500;
+  late int _secondsRemaining;
+  late int _totalSeconds;
   bool _isRunning = true;
   int _movementCount = 0;
   StreamSubscription? _sensorSubscription;
@@ -22,6 +24,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTick
   @override
   void initState() {
     super.initState();
+    _secondsRemaining = widget.durationMinutes * 60;
+    _totalSeconds = widget.durationMinutes * 60;
     _startTimer();
     _initSensors();
   }
@@ -85,7 +89,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTick
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           title: const Text('Session Completed!', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Text('Congratulations! You completed your 25-minute focus session.\n\nTotal phone movements: $_movementCount'),
+          content: Text('Congratulations! You completed your ${widget.durationMinutes}-minute focus session.\n\nTotal phone movements: $_movementCount'),
           actions: [
             ElevatedButton(
               onPressed: () {
@@ -108,7 +112,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final percent = _secondsRemaining / 1500;
+    final percent = _secondsRemaining / _totalSeconds;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
