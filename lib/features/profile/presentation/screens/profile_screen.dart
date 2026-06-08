@@ -281,22 +281,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     child: ValueListenableBuilder<int>(
                       valueListenable: FocusSessionService().totalFocusTimeNotifier,
                       builder: (context, seconds, child) {
-                        final minutes = seconds ~/ 60;
-                        if (minutes < 60) {
+                        if (seconds < 60) {
+                          return _ProfileStatTile(
+                            value: seconds,
+                            suffix: 's',
+                            label: 'Focus Time',
+                            color: Colors.purple,
+                            animate: false,
+                          );
+                        } else if (seconds < 3600) {
+                          final minutes = seconds ~/ 60;
+                          final remSecs = seconds % 60;
                           return _ProfileStatTile(
                             value: minutes,
-                            suffix: 'm',
+                            suffix: 'm ${remSecs}s',
                             label: 'Focus Time',
                             color: Colors.purple,
+                            animate: false,
                           );
                         } else {
-                          final hours = minutes ~/ 60;
-                          final remMins = minutes % 60;
+                          final hours = seconds ~/ 3600;
+                          final minutes = (seconds % 3600) ~/ 60;
+                          final remSecs = seconds % 60;
                           return _ProfileStatTile(
                             value: hours,
-                            suffix: 'h ${remMins}m',
+                            suffix: 'h ${minutes}m ${remSecs}s',
                             label: 'Focus Time',
                             color: Colors.purple,
+                            animate: false,
                           );
                         }
                       },
@@ -381,12 +393,14 @@ class CountingText extends StatefulWidget {
   final int targetValue;
   final String suffix;
   final TextStyle? style;
+  final bool animate;
 
   const CountingText({
     super.key,
     required this.targetValue,
     this.suffix = '',
     this.style,
+    this.animate = true,
   });
 
   @override
@@ -395,12 +409,18 @@ class CountingText extends StatefulWidget {
 
 class _CountingTextState extends State<CountingText>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<int> _animation;
+  AnimationController? _controller;
+  Animation<int>? _animation;
 
   @override
   void initState() {
     super.initState();
+    if (widget.animate) {
+      _initController();
+    }
+  }
+
+  void _initController() {
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -408,39 +428,54 @@ class _CountingTextState extends State<CountingText>
     _animation = IntTween(
       begin: 0,
       end: widget.targetValue,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-    _controller.forward();
+    ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOutCubic));
+    _controller!.forward();
   }
 
   @override
   void didUpdateWidget(covariant CountingText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.targetValue != oldWidget.targetValue) {
-      _controller.dispose();
-      _controller = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 1000),
-      );
-      _animation = IntTween(
-        begin: oldWidget.targetValue,
-        end: widget.targetValue,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-      _controller.forward();
+    if (widget.animate) {
+      if (widget.targetValue != oldWidget.targetValue) {
+        if (_controller == null) {
+          _initController();
+        } else {
+          _controller!.dispose();
+          _controller = AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 1000),
+          );
+          _animation = IntTween(
+            begin: oldWidget.targetValue,
+            end: widget.targetValue,
+          ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOutCubic));
+          _controller!.forward();
+        }
+      }
+    } else {
+      if (_controller != null) {
+        _controller!.dispose();
+        _controller = null;
+        _animation = null;
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.animate || _animation == null) {
+      return Text('${widget.targetValue}${widget.suffix}', style: widget.style);
+    }
     return AnimatedBuilder(
-      animation: _animation,
+      animation: _animation!,
       builder: (context, child) {
-        return Text('${_animation.value}${widget.suffix}', style: widget.style);
+        return Text('${_animation!.value}${widget.suffix}', style: widget.style);
       },
     );
   }
@@ -509,12 +544,14 @@ class _ProfileStatTile extends StatelessWidget {
   final String suffix;
   final String label;
   final Color color;
+  final bool animate;
 
   const _ProfileStatTile({
     required this.value,
     required this.suffix,
     required this.label,
     required this.color,
+    this.animate = true,
   });
 
   @override
@@ -539,6 +576,7 @@ class _ProfileStatTile extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: color,
             ),
+            animate: animate,
           ),
           const SizedBox(height: 4),
           Text(

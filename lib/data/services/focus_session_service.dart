@@ -50,6 +50,7 @@ class FocusSessionService with WidgetsBindingObserver {
   void _checkDailyReset() {
     final today = _getTodayDateString();
     if (_lastTrackDate != today) {
+      _persistTime();
       _dailyUsageSeconds = 0;
       _dailyFocusSeconds = 0;
       _lastTrackDate = today;
