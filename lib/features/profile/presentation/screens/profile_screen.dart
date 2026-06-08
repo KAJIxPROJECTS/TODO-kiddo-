@@ -264,11 +264,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _ProfileStatTile(
-                      value: 85,
-                      suffix: '%',
-                      label: 'Focus Rate',
-                      color: Colors.green,
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: FocusSessionService().focusRateNotifier,
+                      builder: (context, rate, child) {
+                        return _ProfileStatTile(
+                          value: rate,
+                          suffix: '%',
+                          label: 'Focus Rate',
+                          color: Colors.green,
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),

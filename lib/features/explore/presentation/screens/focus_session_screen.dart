@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:todo_app/data/services/focus_session_service.dart';
 
 class FocusSessionScreen extends StatefulWidget {
   final int durationMinutes;
@@ -28,6 +29,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTick
     _totalSeconds = widget.durationMinutes * 60;
     _startTimer();
     _initSensors();
+    FocusSessionService().setFocusSessionActive(true);
   }
 
   void _startTimer() {
@@ -71,6 +73,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTick
   void dispose() {
     _timer.cancel();
     _sensorSubscription?.cancel();
+    FocusSessionService().setFocusSessionActive(false);
     super.dispose();
   }
 
@@ -235,6 +238,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with SingleTick
                     onPressed: () {
                       setState(() {
                         _isRunning = !_isRunning;
+                        FocusSessionService().setFocusSessionActive(_isRunning);
                       });
                     },
                     style: ElevatedButton.styleFrom(
