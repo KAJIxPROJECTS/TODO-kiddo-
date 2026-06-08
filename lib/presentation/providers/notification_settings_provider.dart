@@ -7,6 +7,7 @@ class NotificationSettingsState {
   final int minute;
   final String priorityFilter;
   final bool soundEnabled;
+  final String selectedSound;
 
   NotificationSettingsState({
     required this.enabled,
@@ -14,6 +15,7 @@ class NotificationSettingsState {
     required this.minute,
     required this.priorityFilter,
     required this.soundEnabled,
+    required this.selectedSound,
   });
 }
 
@@ -24,6 +26,7 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettingsSta
   static const String _minuteKey = 'notif_minute';
   static const String _filterKey = 'notif_filter';
   static const String _soundKey = 'notif_sound';
+  static const String _soundFileKey = 'notif_sound_file';
 
   NotificationSettingsNotifier()
       : super(NotificationSettingsState(
@@ -32,6 +35,7 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettingsSta
           minute: _getInt(_minuteKey, 0),
           priorityFilter: _getString(_filterKey, 'All'),
           soundEnabled: _getBool(_soundKey, true),
+          selectedSound: _getString(_soundFileKey, 'zen_gong'),
         ));
 
   static bool _getBool(String key, bool defaultValue) {
@@ -67,6 +71,7 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettingsSta
     int? minute,
     String? priorityFilter,
     bool? soundEnabled,
+    String? selectedSound,
   }) {
     final newState = NotificationSettingsState(
       enabled: enabled ?? state.enabled,
@@ -74,6 +79,7 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettingsSta
       minute: minute ?? state.minute,
       priorityFilter: priorityFilter ?? state.priorityFilter,
       soundEnabled: soundEnabled ?? state.soundEnabled,
+      selectedSound: selectedSound ?? state.selectedSound,
     );
 
     try {
@@ -84,6 +90,7 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettingsSta
         if (minute != null) box.put(_minuteKey, minute);
         if (priorityFilter != null) box.put(_filterKey, priorityFilter);
         if (soundEnabled != null) box.put(_soundKey, soundEnabled);
+        if (selectedSound != null) box.put(_soundFileKey, selectedSound);
       }
     } catch (_) {}
 

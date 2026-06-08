@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/services/notification_service.dart';
 import '../../../../presentation/providers/notification_settings_provider.dart';
+import 'sound_selection_screen.dart';
 
 class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
@@ -103,6 +104,22 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     settingsNotifier.updateSettings(soundEnabled: val);
                   }
                 : null,
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('Notification Sound', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              notificationSounds.firstWhere((s) => s.id == settings.selectedSound, orElse: () => const SoundDefinition('zen_gong', 'Zen Gong', '')).name,
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            enabled: settings.enabled && settings.soundEnabled,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SoundSelectionScreen(),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 40),
           ElevatedButton.icon(

@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import '../../core/audio/audio_player.dart';
 import '../models/task_model.dart';
 
 class NotificationService {
@@ -22,10 +23,10 @@ class NotificationService {
 
     const DarwinInitializationSettings darwinSettings =
         DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        );
 
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
@@ -35,7 +36,6 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       settings: initSettings,
       onDidReceiveNotificationResponse: (details) {
-        // Handle when notification is tapped
       },
     );
   }
@@ -138,6 +138,20 @@ class NotificationService {
   }
 
   Future<void> showTestNotification() async {
+    bool soundEnabled = true;
+    String soundId = 'zen_gong';
+    try {
+      if (Hive.isBoxOpen('profile_box')) {
+        final box = Hive.box('profile_box');
+        soundEnabled = box.get('notif_sound', defaultValue: true) as bool;
+        soundId = box.get('notif_sound_file', defaultValue: 'zen_gong') as String;
+      }
+    } catch (_) {}
+
+    if (soundEnabled) {
+      NotificationSoundPlayer.playSound(soundId);
+    }
+
     if (kIsWeb) return;
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'test_channel',
