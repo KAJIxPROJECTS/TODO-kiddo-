@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/task_model.dart';
 import '../../data/repositories/task_repository.dart';
 import '../../data/services/notification_service.dart';
+import '../../data/services/analytics_service.dart';
 
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {
   throw UnimplementedError('Override taskRepositoryProvider in ProviderScope');
@@ -21,6 +22,7 @@ class TasksNotifier extends StateNotifier<List<Task>> {
 
   Future<void> addTask(Task task) async {
     await _repository.saveTask(task);
+    await AnalyticsService().incrementTasksCreated();
     if (task.completed) {
       await _notificationService.cancelTaskNotification(task);
     } else {
@@ -38,6 +40,7 @@ class TasksNotifier extends StateNotifier<List<Task>> {
       await _repository.saveTask(updatedTask);
       if (updatedTask.completed) {
         await _notificationService.cancelTaskNotification(updatedTask);
+        await AnalyticsService().incrementTasksCompleted();
       } else {
         await _notificationService.scheduleTaskNotification(updatedTask);
       }

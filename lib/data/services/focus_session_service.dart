@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo_app/data/services/analytics_service.dart';
 
 class FocusSessionService with WidgetsBindingObserver {
   static final FocusSessionService _instance = FocusSessionService._internal();
@@ -51,6 +52,11 @@ class FocusSessionService with WidgetsBindingObserver {
     final today = _getTodayDateString();
     if (_lastTrackDate != today) {
       _persistTime();
+      AnalyticsService().recordDailyStats(
+        date: _lastTrackDate,
+        focusTimeSeconds: _dailyFocusSeconds,
+        appUsageTimeSeconds: _dailyUsageSeconds,
+      );
       _dailyUsageSeconds = 0;
       _dailyFocusSeconds = 0;
       _lastTrackDate = today;
