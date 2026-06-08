@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:todo_app/presentation/providers/profile_providers.dart';
 import 'package:todo_app/presentation/providers/task_providers.dart';
+import 'package:todo_app/data/services/focus_session_service.dart';
 import 'notification_settings_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -272,11 +273,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _ProfileStatTile(
-                      value: 14,
-                      suffix: 'h',
-                      label: 'Focus Time',
-                      color: Colors.purple,
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: FocusSessionService().totalFocusTimeNotifier,
+                      builder: (context, seconds, child) {
+                        final minutes = seconds ~/ 60;
+                        if (minutes < 60) {
+                          return _ProfileStatTile(
+                            value: minutes,
+                            suffix: 'm',
+                            label: 'Focus Time',
+                            color: Colors.purple,
+                          );
+                        } else {
+                          final hours = minutes ~/ 60;
+                          final remMins = minutes % 60;
+                          return _ProfileStatTile(
+                            value: hours,
+                            suffix: 'h ${remMins}m',
+                            label: 'Focus Time',
+                            color: Colors.purple,
+                          );
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -387,6 +405,23 @@ class _CountingTextState extends State<CountingText>
       end: widget.targetValue,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant CountingText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.targetValue != oldWidget.targetValue) {
+      _controller.dispose();
+      _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1000),
+      );
+      _animation = IntTween(
+        begin: oldWidget.targetValue,
+        end: widget.targetValue,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+      _controller.forward();
+    }
   }
 
   @override

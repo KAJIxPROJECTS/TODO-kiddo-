@@ -4,18 +4,18 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:todo_app/app.dart';
 import 'package:todo_app/data/repositories/hive_task_repository.dart';
 import 'package:todo_app/data/services/notification_service.dart';
+import 'package:todo_app/data/services/focus_session_service.dart';
 import 'package:todo_app/presentation/providers/task_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FocusSessionService().init();
 
-  // Initialize Hive base
   await Hive.initFlutter();
 
   final taskRepository = HiveTaskRepository();
   final notificationService = NotificationService();
 
-  // Initialize data boxes and services in parallel
   await Future.wait([
     Hive.openBox('profile_box'),
     taskRepository.init(),
