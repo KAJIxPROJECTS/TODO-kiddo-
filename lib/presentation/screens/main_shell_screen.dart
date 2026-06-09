@@ -2,7 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/task_model.dart';
+import '../../data/services/focus_session_service.dart';
+import '../../features/explore/presentation/screens/focus_session_screen.dart';
 import '../providers/task_providers.dart';
 
 class MainShellScreen extends StatefulWidget {
@@ -75,19 +78,76 @@ class _MainShellScreenState extends State<MainShellScreen> with TickerProviderSt
       duration: const Duration(milliseconds: 250),
       reverseDuration: const Duration(milliseconds: 250),
     );
-    showModalBottomSheet(
+    showModalBottomSheet<Task?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionAnimationController: _addTaskSheetController,
       builder: (context) => const AddTaskBottomSheet(),
-    ).then((_) {
+    ).then((task) {
       if (mounted) {
         setState(() => _isModalOpen = false);
+        if (task != null) {
+          _showFocusModeDialog(task);
+        }
       }
       _addTaskSheetController = null;
     });
+  }
+
+  void _showFocusModeDialog(Task task) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+            side: BorderSide(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+              width: 1,
+            ),
+          ),
+          title: Text(
+            'Start Focus Mode for this task?',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Later'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('current_focus_task_id', task.id);
+                await prefs.setString('current_focus_task_title', task.title);
+                await prefs.setInt('current_focus_start_timestamp', DateTime.now().millisecondsSinceEpoch);
+                await prefs.setBool('current_focus_session_active', true);
+                FocusSessionService().setFocusSessionActive(true);
+                if (context.mounted) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const FocusSessionScreen(durationMinutes: 25),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFBBF24),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Start Focus'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -774,11 +834,8 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> with Si
                             final navigator = Navigator.of(context);
                             final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-                            // Save to Hive storage via Riverpod
                             await ref.read(tasksProvider.notifier).addTask(task);
-
-                            // Close Bottom Sheet
-                            navigator.pop();
+                            navigator.pop(task);
                             
                             // Show success SnackBar
                             scaffoldMessenger.showSnackBar(

@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo_app/data/services/analytics_service.dart';
+import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
+import 'package:flutter_background_service/flutter_background_service.dart';
 
 class FocusSessionService with WidgetsBindingObserver {
   static final FocusSessionService _instance = FocusSessionService._internal();
@@ -41,6 +45,7 @@ class FocusSessionService with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addObserver(this);
     _startSession();
+    await initializeBackgroundService();
   }
 
   String _getTodayDateString() {
@@ -80,6 +85,13 @@ class FocusSessionService with WidgetsBindingObserver {
     if (isFocusSessionActive != active) {
       _persistTime();
       isFocusSessionActive = active;
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        if (active) {
+          FlutterBackgroundService().startService();
+        } else {
+          FlutterBackgroundService().invoke('stopService');
+        }
+      }
     }
   }
 
@@ -151,4 +163,53 @@ class FocusSessionService with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _stopTimer();
   }
+}
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  DartPluginRegistrant.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.reload();
+  final title = prefs.getString('current_focus_task_title') ?? 'Active Task';
+
+  if (service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+    service.on('setAsBackground').listen((event) {
+      service.setAsBackgroundService();
+    });
+  }
+
+  service.on('stopService').listen((event) {
+    service.stopSelf();
+  });
+
+  if (service is AndroidServiceInstance) {
+    service.setForegroundNotificationInfo(
+      title: 'Focus Session Active',
+      content: title,
+    );
+  }
+}
+
+Future<void> initializeBackgroundService() async {
+  if (kIsWeb) return;
+  if (!Platform.isAndroid && !Platform.isIOS) return;
+
+  final service = FlutterBackgroundService();
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      autoStart: false,
+      isForegroundMode: true,
+      notificationChannelId: 'focus_foreground',
+      initialNotificationTitle: 'Focus Session Active',
+      initialNotificationContent: 'Active Task',
+    ),
+    iosConfiguration: IosConfiguration(
+      autoStart: false,
+      onForeground: onStart,
+    ),
+  );
 }

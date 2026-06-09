@@ -408,7 +408,7 @@ class CountingText extends StatefulWidget {
 }
 
 class _CountingTextState extends State<CountingText>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   AnimationController? _controller;
   Animation<int>? _animation;
 
