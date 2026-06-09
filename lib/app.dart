@@ -10,7 +10,7 @@ class TodoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'Todo App',
+      title: 'TODU NOW',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
